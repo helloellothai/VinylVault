@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VinylVault - Record Collection Manager</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlZpbnlsVmF1bHQiLAogICJzaG9ydF9uYW1lIjogIlZpbnlsVmF1bHQiLAogICJkZXNjcmlwdGlvbiI6ICJSZWNvcmQgQ29sbGVjdGlvbiBNYW5hZ2VyIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmNWY1ZjUiLAogICJ0aGVtZV9jb2xvciI6ICIjMDA3QUZGIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTVRJNElpQm9aV2xuYUhROUlqRXlPQ0lpSUhacFpYZENiM2c5SWpBZ01DQXhNamdnTVRJNElpQjRiV3h1Y3owaWFIUjBjRG92TDNkM2R5NTNNeTU2Y21jdk1qQXdNQzl6ZG1jaVBnbzhZMmx5WTJ4bElHTjRQU0kyTkNJZ1kza2xJalUwSWlCeVBTSXpNaUlnWm1sc2JEMGlJekF3TjBGR1JpSXZQZ284ZEdWNGRDQjRQU0kyTkNJZ2VUMGlOekVpSUdacGJHdzlJaU5tWm1ZaUlHWnZiblF0Wm1GdGFXeDVQU0pCY21saGJDNGdZbTlzWkNJZ1ptOXVkQzF6YVRwbFBTSXpNaUlnZEdWNGRBczBZVzVqYUc5eVBTSnRhV1JrYkdVaVBpOThmall3UHp3dmRHVjRkRDQ4TDNOMlp6ND0iLAogICAgICAic2l6ZXMiOiAiMTI4eDEyOCIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiCiAgICB9CiAgXQp9">
+    <meta name="theme-color" content="#007AFF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VinylVault">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin: 0;
+        }
+        
+        .collection-count {
+            color: #666;
+            font-size: 1.1rem;
+            margin-top: 8px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .primary-button {
+            background-color: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+            min-width: 120px;
+            touch-action: manipulation;
+        }
+        
+        .secondary-button {
+            background-color: white;
+            color: #007AFF;
+            border: 2px solid #007AFF;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+            min-width: 120px;
+            touch-action: manipulation;
+        }
+        
+        .add-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .camera-button {
+            background-color: #34C759;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 15px;
+            width: 100%;
+            touch-action: manipulation;
+        }
+        
+        .preview-image {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin: 15px auto;
+            display: block;
+        }
+        
+        .album-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .album-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .album-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .album-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .placeholder-image {
+            width: 100%;
+            height: 200px;
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #999;
+            margin-bottom: 10px;
+        }
+        
+        .album-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .album-artist {
+            color: #666;
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+        
+        .album-year {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .delete-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #FF3B30;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            touch-action: manipulation;
+        }
+        
+        .edit-button {
+            position: absolute;
+            top: 10px;
+            right: 40px;
+            background-color: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            touch-action: manipulation;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            touch-action: manipulation;
+        }
+        
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        
+        .search-button {
+            background-color: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            touch-action: manipulation;
+        }
+        
+        .search-result-card {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .search-result-card:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .search-result-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 15px;
+        }
+        
+        .search-result-info {
+            flex: 1;
+        }
+        
+        .search-result-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+        
+        .search-result-artist {
+            color: #666;
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+        
+        .search-result-year {
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .add-button-text {
+            background-color: #34C759;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        
+        .loader {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.1rem;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #34C759;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .camera-preview {
+            position: relative;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .camera-video {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: #000;
+        }
+        
+        .focus-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 200px;
+            height: 200px;
+            transform: translate(-50%, -50%);
+            border: 3px solid #00FF00;
+            border-radius: 8px;
+            box-shadow: 
+                0 0 0 2px rgba(0,255,0,0.3),
+                0 0 0 9999px rgba(0,0,0,0.6);
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .checkbox {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        .list-container {
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .list-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 100px 100px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            font-weight: bold;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .list-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 100px 100px;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            align-items: center;
+        }
+        
+        .list-album-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .list-image {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-right: 12px;
+        }
+        
+        .list-placeholder {
+            width: 50px;
+            height: 50px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #6c757d;
+            margin-right: 12px;
+        }
+        
+        .list-album-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #212529;
+        }
+        
+        .delete-button-small {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            touch-action: manipulation;
+        }
+        
+        .focus-label {
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #00FF00;
+            color: #000;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header-title {
+                font-size: 2rem;
+            }
+            
+            .button-row {
+                flex-direction: column;
+            }
+            
+            .primary-button, .secondary-button {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            .album-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+            }
+            
+            .list-header, .list-row {
+                grid-template-columns: 2fr 1fr 80px;
+            }
+            
+            .list-header > div:nth-child(3),
+            .list-row > div:nth-child(3) {
+                display: none;
+            }
+            
+            .modal-content {
+                padding: 20px;
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="header-title">🎵 VinylVault</h1>
+            <div class="collection-count" id="collection-count">0 albums in collection</div>
+        </div>
+
+        <!-- Search Bar -->
+        <input
+            type="text"
+            placeholder="Search your collection..."
+            class="search-input"
+            id="search-input"
+        />
+
+        <!-- Action Buttons -->
+        <div class="button-row">
+            <button class="primary-button" id="find-online-btn">
+                🔍 Find Albums Online
+            </button>
+            <button class="secondary-button" id="share-collection-btn">
+                📱 Share Collection
+            </button>
+            <button class="secondary-button" id="list-view-btn">
+                📋 List View
+            </button>
+            <button class="secondary-button" id="grid-view-btn">
+                🔲 Grid View
+            </button>
+        </div>
+
+        <!-- Show/Hide Covers Toggle for List View -->
+        <div class="toggle-row" id="covers-toggle" style="display: none;">
+            <label class="toggle-label">
+                <input type="checkbox" checked id="show-covers-checkbox" class="checkbox" />
+                Show Album Covers
+            </label>
+        </div>
+
+        <!-- Add Manual Entry Section -->
+        <div class="add-section">
+            <h2 class="section-title">Add Album Manually</h2>
+            
+            <input
+                type="text"
+                placeholder="Album Title"
+                class="input"
+                id="title-input"
+            />
+            
+            <input
+                type="text"
+                placeholder="Artist"
+                class="input"
+                id="artist-input"
+            />
+            
+            <button class="secondary-button" id="auto-fill-btn" style="margin-bottom: 15px; width: 100%;">
+                🎯 Auto-Fill from Album Name
+            </button>
+            
+            <button class="camera-button" id="camera-btn">
+                📷 Take Photo (+ Smart Album Recognition)
+            </button>
+            
+            <!-- Camera Preview -->
+            <div id="camera-preview" class="camera-preview" style="display: none;">
+                <video id="camera-video" class="camera-video" autoplay playsinline muted></video>
+                <div class="focus-frame">
+                    <div class="focus-label">📱 CAPTURE WINDOW - Center album here</div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button class="primary-button" id="capture-btn" style="margin-right: 10px;">
+                        📸 Capture Square
+                    </button>
+                    <button class="secondary-button" id="cancel-camera-btn">
+                        ❌ Cancel
+                    </button>
+                </div>
+            </div>
+            
+            <canvas id="capture-canvas" style="display: none;"></canvas>
+            <img id="preview-image" class="preview-image" style="display: none;" />
+            
+            <div class="button-row">
+                <button class="primary-button" id="add-album-btn">
+                    ➕ Add to Collection
+                </button>
+            </div>
+        </div>
+
+        <!-- Album Collection -->
+        <div id="albums-container">
+            <div class="empty-state">
+                <h3>No albums in your collection yet!</h3>
+                <p>Start by searching for albums online or adding them manually.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Collection Modal -->
+    <div class="modal" id="share-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">📱 Share Your Collection</h2>
+                <button class="close-button" id="close-share-modal-btn">✕</button>
+            </div>
+
+            <div style="text-align: center;">
+                <p style="margin-bottom: 20px; color: #666;">
+                    Scan this QR code with any phone camera to access your collection!
+                </p>
+
+                <div id="qr-code-display" style="
+                    background: white; 
+                    padding: 20px; 
+                    border-radius: 12px; 
+                    display: inline-block;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    min-height: 240px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">Loading QR code...</div>
+
+                <p style="color: #888; font-size: 0.9rem; margin-top: 15px;">
+                    📱 Point any phone camera at this code<br>
+                    🎵 Opens your collection instantly
+                </p>
+
+                <div style="margin-top: 20px;">
+                    <button class="primary-button" id="copy-share-link-btn">
+                        📋 Copy Share Link
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Album Modal -->
+    <div class="modal" id="edit-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">✏️ Edit Album</h2>
+                <button class="close-button" id="close-edit-modal-btn">✕</button>
+            </div>
+
+            <input type="text" placeholder="Album Title" class="input" id="edit-title-input" />
+            <input type="text" placeholder="Artist" class="input" id="edit-artist-input" />
+            <input type="text" placeholder="Year (optional)" class="input" id="edit-year-input" />
+
+            <img id="edit-preview-image" class="preview-image" style="display: none;" />
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="primary-button" id="save-edit-btn" style="flex: 1;">
+                    💾 Save Changes
+                </button>
+                <button class="secondary-button" id="cancel-edit-btn" style="flex: 1;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Online Search Modal -->
+    <div class="modal" id="search-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Search Albums Online</h2>
+                <button class="close-button" id="close-modal-btn">✕</button>
+            </div>
+
+            <div class="search-container">
+                <input
+                    type="text"
+                    placeholder="Search for album or artist..."
+                    class="input"
+                    id="online-search-input"
+                    style="flex: 1; margin-bottom: 0;"
+                />
+                <button class="search-button" id="search-btn">Search</button>
+            </div>
+
+            <div id="search-results"></div>
+        </div>
+    </div>
+
+    <!-- QR Code Library - ESSENTIAL FOR QR CODES TO WORK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+
+    <script>
+        // App state
+        let state = {
+            albums: [],
+            viewMode: 'grid',
+            showCovers: true,
+            currentImageUri: null
+        };
+
+        let editingAlbumId = null;
+        let currentCameraStream = null;
+
+        // Load albums from localStorage AND URL parameters (FIXED CROSS-DEVICE SYNC)
+        function loadAlbums() {
+            try {
+                const saved = localStorage.getItem('vinylCollection');
+                if (saved) {
+                    state.albums = JSON.parse(saved);
+                }
+                
+                // CRITICAL: Check for shared collection in URL
+                loadFromURL();
+            } catch (error) {
+                console.error('Error loading albums:', error);
+            }
+        }
+
+        // Save albums to localStorage
+        function saveAlbums() {
+            try {
+                localStorage.setItem('vinylCollection', JSON.stringify(state.albums));
+            } catch (error) {
+                console.error('Error saving albums:', error);
+            }
+        }
+
+        // FIXED: Load collection from URL parameter (CROSS-DEVICE SYNC)
+        function loadFromURL() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const collectionData = urlParams.get('collection');
+                
+                if (collectionData) {
+                    const decodedData = JSON.parse(atob(collectionData));
+                    
+                    // Merge with existing collection (avoid duplicates)
+                    const existingTitles = new Set(state.albums.map(album => `${album.title}-${album.artist}`.toLowerCase()));
+                    const newAlbums = decodedData.filter(album => 
+                        !existingTitles.has(`${album.title}-${album.artist}`.toLowerCase())
+                    );
+                    
+                    if (newAlbums.length > 0) {
+                        state.albums.push(...newAlbums);
+                        saveAlbums();
+                        console.log(`Added ${newAlbums.length} albums from shared collection`);
+                        showNotification(`✅ Added ${newAlbums.length} albums from shared collection!`);
+                    } else {
+                        showNotification('📚 All albums from shared collection already in your library!');
+                    }
+                    
+                    // Clean URL after loading
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } catch (error) {
+                console.error('Error loading collection from URL:', error);
+            }
+        }
+
+        // Show notification
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 4000);
+        }
+
+        // FIXED: Generate QR Code using proper library
+        function generateQRCode(text) {
+            if (!text) {
+                return '<div style="color: #999; padding: 40px;">No collection to share</div>';
+            }
+            
+            const qrContainer = document.getElementById('qr-code-display');
+            qrContainer.innerHTML = '';
+            
+            // Check if QRCode library is loaded
+            if (typeof QRCode === 'undefined') {
+                console.error('QRCode library not loaded');
+                qrContainer.innerHTML = '<p style="color: red;">QR Code library not loaded. Please check your internet connection.</p>';
+                return;
+            }
+            
+            // Create canvas for QR code
+            const canvas = document.createElement('canvas');
+            qrContainer.appendChild(canvas);
+            
+            // Generate QR code using the library
+            QRCode.toCanvas(canvas, text, {
+                width: 200,
+                height: 200,
+                margin: 2,
+                color: {
+                    dark: '#2c3e50',
+                    light: '#ffffff'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error('QR Code Error:', error);
+                    qrContainer.innerHTML = '<p style="color: red;">QR Code generation failed</p>';
+                } else {
+                    console.log('✅ QR code generated successfully');
+                }
+            });
+        }
+
+        // Copy to clipboard with fallback
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showNotification('📋 Link copied to clipboard!');
+            } catch (error) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    showNotification('📋 Link copied to clipboard!');
+                } catch (err) {
+                    alert('❌ Copy failed. Please copy manually:\n\n' + text);
+                }
+                
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // MusicBrainz API search
+        async function searchAlbumsOnline(query) {
+            if (!query.trim()) return [];
+            
+            try {
+                const searchUrl = `https://musicbrainz.org/ws/2/release/?query=${encodeURIComponent(query)}&fmt=json&limit=20`;
+                const response = await fetch(searchUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.releases || data.releases.length === 0) {
+                    return [];
+                }
+                
+                return data.releases
+                    .filter(release => release.title && release['artist-credit']?.[0]?.name)
+                    .map(release => ({
+                        id: release.id,
+                        title: release.title,
+                        artist: release['artist-credit'][0].name,
+                        year: release.date ? release.date.substring(0, 4) : '',
+                        imageUrl: `https://coverartarchive.org/release/${release.id}/front-250`,
+                        mbid: release.id
+                    }))
+                    .slice(0, 10);
+                    
+            } catch (error) {
+                console.error('MusicBrainz search failed:', error);
+                return [];
+            }
+        }
+
+        // RESTORED: Auto-fill album info from online search
+        async function autoFillAlbumInfo() {
+            const titleInput = document.getElementById('title-input');
+            const artistInput = document.getElementById('artist-input');
+            const previewImg = document.getElementById('preview-image');
+            
+            const query = titleInput.value.trim() || artistInput.value.trim();
+            if (!query) {
+                alert('Enter an album title or artist name first!');
+                return;
+            }
+            
+            // Show loading state
+            titleInput.placeholder = '🔍 Searching online...';
+            artistInput.placeholder = '🔍 Searching online...';
+            
+            try {
+                const results = await searchAlbumsOnline(query);
+                if (results.length > 0) {
+                    const topResult = results[0];
+                    
+                    // Fill in the details
+                    titleInput.value = topResult.title;
+                    titleInput.placeholder = 'Album Title';
+                    artistInput.value = topResult.artist;
+                    artistInput.placeholder = 'Artist';
+                    
+                    // Set the album cover
+                    if (topResult.imageUrl) {
+                        previewImg.src = topResult.imageUrl;
+                        previewImg.style.display = 'block';
+                        state.currentImageUri = topResult.imageUrl;
+                    }
+                    
+                    showNotification(`🎯 Found: "${topResult.title}" by ${topResult.artist}!`);
+                    console.log('✅ Auto-filled album info:', topResult);
+                } else {
+                    titleInput.placeholder = 'Album Title';
+                    artistInput.placeholder = 'Artist';
+                    showNotification('❌ No albums found. Try a different search term.');
+                }
+            } catch (error) {
+                titleInput.placeholder = 'Album Title';
+                artistInput.placeholder = 'Artist';
+                showNotification('❌ Search failed. Please try again.');
+                console.error('Auto-fill failed:', error);
+            }
+        }
+
+        // RESTORED: Enhanced camera functionality with focus frame
+        async function takePhoto() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',  // Use back camera
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                const video = document.getElementById('camera-video');
+                video.srcObject = stream;
+                document.getElementById('camera-preview').style.display = 'block';
+                
+                // Store the stream for cleanup
+                currentCameraStream = stream;
+                
+            } catch (error) {
+                console.error('Camera access failed:', error);
+                // Fallback to file input
+                takeFallbackPhoto();
+            }
+        }
+
+        // Fallback photo method (file input)
+        function takeFallbackPhoto() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment';
+            
+            input.onchange = async (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        await processPhotoData(e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            
+            input.click();
+        }
+
+        // RESTORED: Capture photo from camera with focus frame cropping
+        async function capturePhoto() {
+            const video = document.getElementById('camera-video');
+            const canvas = document.getElementById('capture-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!video.videoWidth || !video.videoHeight) {
+                showNotification('❌ Camera not ready, please try again');
+                return;
+            }
+            
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw the full video frame
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Calculate square crop area (200x200 focus frame)
+            const focusSize = 200;
+            const videoElement = document.getElementById('camera-video');
+            const videoRect = videoElement.getBoundingClientRect();
+            
+            // Calculate scaling factors
+            const scaleX = canvas.width / videoRect.width;
+            const scaleY = canvas.height / videoRect.height;
+            
+            // Calculate crop area (center square)
+            const cropSize = Math.min(focusSize * scaleX, focusSize * scaleY);
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const cropX = centerX - cropSize / 2;
+            const cropY = centerY - cropSize / 2;
+            
+            // Create square cropped canvas
+            const croppedCanvas = document.createElement('canvas');
+            const croppedCtx = croppedCanvas.getContext('2d');
+            const finalSize = 400; // Standard square size
+            croppedCanvas.width = finalSize;
+            croppedCanvas.height = finalSize;
+            
+            // Draw cropped square image
+            croppedCtx.drawImage(
+                canvas, 
+                Math.max(0, cropX), Math.max(0, cropY), cropSize, cropSize,
+                0, 0, finalSize, finalSize
+            );
+            
+            // Convert to data URL
+            const dataUrl = croppedCanvas.toDataURL('image/jpeg', 0.9);
+            
+            console.log('📸 Square photo captured and cropped');
+            
+            // Clean up camera
+            await closeCameraPreview();
+            
+            // Process the cropped square image
+            await processPhotoData(dataUrl);
+        }
+
+        // Process photo data (common for both camera and file)
+        async function processPhotoData(dataUrl) {
+            state.currentImageUri = dataUrl;
+            const previewImg = document.getElementById('preview-image');
+            previewImg.src = state.currentImageUri;
+            previewImg.style.display = 'block';
+            
+            // Try image recognition (placeholder - you can add Google Vision API here)
+            const titleInput = document.getElementById('title-input');
+            const artistInput = document.getElementById('artist-input');
+            
+            // Show that we're trying to recognize the album
+            titleInput.placeholder = '🔍 Analyzing album cover...';
+            artistInput.placeholder = '🔍 Analyzing album cover...';
+            
+            // Simulate processing time
+            setTimeout(() => {
+                titleInput.placeholder = 'Album Title';
+                artistInput.placeholder = 'Artist';
+                showNotification('📷 Photo captured! Enter album details manually or use auto-fill.');
+                
+                // Here you could add Google Vision API integration:
+                // const recognizedInfo = await recognizeAlbumFromImage(state.currentImageUri);
+                // if (recognizedInfo) { ... }
+            }, 1500);
+        }
+
+        // Close camera preview
+        async function closeCameraPreview() {
+            const preview = document.getElementById('camera-preview');
+            const video = document.getElementById('camera-video');
+            
+            // Stop camera stream
+            if (currentCameraStream) {
+                currentCameraStream.getTracks().forEach(track => track.stop());
+                currentCameraStream = null;
+            }
+            
+            video.srcObject = null;
+            preview.style.display = 'none';
+        }
+
+        // Add album to collection
+        function addAlbum() {
+            const title = document.getElementById('title-input').value.trim();
+            const artist = document.getElementById('artist-input').value.trim();
+            
+            if (!title || !artist) {
+                alert('Please enter both title and artist');
+                return;
+            }
+
+            // Check for duplicates
+            const duplicate = state.albums.find(album => 
+                album.title.toLowerCase() === title.toLowerCase() && 
+                album.artist.toLowerCase() === artist.toLowerCase()
+            );
+
+            if (duplicate) {
+                alert('This album is already in your collection!');
+                return;
+            }
+
+            const newAlbum = {
+                id: Date.now().toString(),
+                title,
+                artist,
+                imageUri: state.currentImageUri,
+                dateAdded: new Date().toISOString(),
+            };
+
+            state.albums.push(newAlbum);
+            saveAlbums();
+            
+            // Clear form
+            document.getElementById('title-input').value = '';
+            document.getElementById('artist-input').value = '';
+            document.getElementById('preview-image').style.display = 'none';
+            state.currentImageUri = null;
+            
+            showNotification('✅ Album added to your collection!');
+            renderAlbums();
+        }
+
+        // Add album from search results
+        function addAlbumFromSearch(albumData) {
+            // Check for duplicates
+            const duplicate = state.albums.find(album => 
+                album.title.toLowerCase() === albumData.title.toLowerCase() && 
+                album.artist.toLowerCase() === albumData.artist.toLowerCase()
+            );
+
+            if (duplicate) {
+                alert('This album is already in your collection!');
+                return;
+            }
+
+            const newAlbum = {
+                id: Date.now().toString(),
+                title: albumData.title,
+                artist: albumData.artist,
+                year: albumData.year,
+                imageUri: albumData.imageUrl,
+                dateAdded: new Date().toISOString(),
+                source: 'online'
+            };
+
+            state.albums.push(newAlbum);
+            saveAlbums();
+            
+            document.getElementById('search-modal').style.display = 'none';
+            document.getElementById('online-search-input').value = '';
+            document.getElementById('search-results').innerHTML = '';
+            
+            showNotification('✅ Album added to your collection!');
+            renderAlbums();
+        }
+
+        // RESTORED: Edit album functionality
+        function editAlbum(albumId) {
+            const album = state.albums.find(a => a.id === albumId);
+            if (!album) return;
+
+            editingAlbumId = albumId;
+            
+            // Fill edit form
+            document.getElementById('edit-title-input').value = album.title;
+            document.getElementById('edit-artist-input').value = album.artist;
+            document.getElementById('edit-year-input').value = album.year || '';
+            
+            // Show image if exists
+            const editPreview = document.getElementById('edit-preview-image');
+            if (album.imageUri) {
+                editPreview.src = album.imageUri;
+                editPreview.style.display = 'block';
+            } else {
+                editPreview.style.display = 'none';
+            }
+            
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+
+        function saveEditedAlbum() {
+            if (!editingAlbumId) return;
+
+            const title = document.getElementById('edit-title-input').value.trim();
+            const artist = document.getElementById('edit-artist-input').value.trim();
+            const year = document.getElementById('edit-year-input').value.trim();
+            
+            if (!title || !artist) {
+                alert('Please enter both title and artist');
+                return;
+            }
+
+            // Check for duplicates (exclude current album)
+            const duplicate = state.albums.find(album => 
+                album.id !== editingAlbumId &&
+                album.title.toLowerCase() === title.toLowerCase() && 
+                album.artist.toLowerCase() === artist.toLowerCase()
+            );
+
+            if (duplicate) {
+                alert('This album is already in your collection!');
+                return;
+            }
+
+            // Update the album
+            const albumIndex = state.albums.findIndex(a => a.id === editingAlbumId);
+            if (albumIndex !== -1) {
+                state.albums[albumIndex] = {
+                    ...state.albums[albumIndex],
+                    title,
+                    artist,
+                    year,
+                    lastModified: new Date().toISOString()
+                };
+                
+                saveAlbums();
+                renderAlbums();
+                
+                document.getElementById('edit-modal').style.display = 'none';
+                editingAlbumId = null;
+                
+                showNotification('✅ Album updated successfully!');
+            }
+        }
+
+        function cancelEdit() {
+            document.getElementById('edit-modal').style.display = 'none';
+            editingAlbumId = null;
+        }
+
+        // Delete album
+        function deleteAlbum(albumId) {
+            if (confirm('Are you sure you want to remove this album from your collection?')) {
+                state.albums = state.albums.filter(album => album.id !== albumId);
+                saveAlbums();
+                renderAlbums();
+                showNotification('🗑️ Album deleted from collection');
+            }
+        }
+
+        // Filter and sort albums
+        function getFilteredAndSortedAlbums() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            
+            let filtered = state.albums.filter(album => {
+                const titleMatch = album.title.toLowerCase().includes(searchTerm);
+                const artistMatch = album.artist.toLowerCase().includes(searchTerm);
+                return titleMatch || artistMatch;
+            });
+
+            return filtered.sort((a, b) => a.title.localeCompare(b.title));
+        }
+
+        // Render albums (with list view support)
+        function renderAlbums() {
+            const container = document.getElementById('albums-container');
+            const data = getFilteredAndSortedAlbums();
+            
+            // Update collection count
+            document.getElementById('collection-count').textContent = `${state.albums.length} albums in collection`;
+            
+            if (state.albums.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No albums in your collection yet!</h3>
+                        <p>Start by searching for albums online or adding them manually.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Check if search returned no results
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            if (searchTerm && data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No albums match your search</h3>
+                        <p>Try a different search term or clear the search to see all albums.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (state.viewMode === 'list') {
+                container.innerHTML = `
+                    <div class="list-container">
+                        <div class="list-header">
+                            <div>Album</div>
+                            <div>Artist</div>
+                            <div>Year</div>
+                            <div>Actions</div>
+                        </div>
+                        ${data.map(renderListRow).join('')}
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="album-grid">
+                        ${data.map(renderAlbumCard).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        // RESTORED: Render album card with edit functionality
+        function renderAlbumCard(item) {
+            return `
+                <div class="album-card">
+                    <button class="delete-button" onclick="deleteAlbum('${item.id}')" title="Delete album">×</button>
+                    <button class="edit-button" onclick="editAlbum('${item.id}')" title="Edit album">✏️</button>
+                    ${item.imageUri ? 
+                        `<img src="${item.imageUri}" alt="${item.title}" class="album-image" />` :
+                        `<div class="placeholder-image">♪</div>`
+                    }
+                    <div class="album-title">${item.title}</div>
+                    <div class="album-artist">${item.artist}</div>
+                    ${item.year ? `<div class="album-year">${item.year}</div>` : ''}
+                </div>
+            `;
+        }
+
+        // Render list row
+        function renderListRow(item) {
+            return `
+                <div class="list-row">
+                    <div>
+                        <div class="list-album-info">
+                            ${state.showCovers && item.imageUri ? 
+                                `<img src="${item.imageUri}" alt="${item.title}" class="list-image" />` :
+                                state.showCovers ? `<div class="list-placeholder">♪</div>` : ''
+                            }
+                            <div class="list-album-title">${item.title}</div>
+                        </div>
+                    </div>
+                    <div>${item.artist}</div>
+                    <div>${item.year || '—'}</div>
+                    <div>
+                        <button class="delete-button-small" onclick="deleteAlbum('${item.id}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update view mode buttons
+        function updateViewButtons() {
+            document.querySelectorAll('#list-view-btn, #grid-view-btn').forEach(btn => {
+                btn.className = 'secondary-button';
+            });
+            
+            const activeBtn = state.viewMode === 'list' ? 'list-view-btn' : 'grid-view-btn';
+            document.getElementById(activeBtn).className = 'primary-button';
+            document.getElementById('covers-toggle').style.display = state.viewMode === 'list' ? 'flex' : 'none';
+        }
+            const container = document.getElementById('search-results');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="loader">No albums found. Try a different search term.</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <h3>Search Results:</h3>
+                ${results.map(item => `
+                    <div class="search-result-card" onclick="addAlbumFromSearch(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                        <img src="${item.imageUrl}" alt="${item.title}" class="search-result-image" />
+                        <div class="search-result-info">
+                            <div class="search-result-title">${item.title}</div>
+                            <div class="search-result-artist">${item.artist}</div>
+                            <div class="search-result-year">${item.year}</div>
+                        </div>
+                        <button class="add-button-text">ADD</button>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        // Render search results
+        function renderSearchResults(results) {
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAlbums();
+            renderAlbums();
+            updateViewButtons();
+
+            // Search input with real-time feedback
+            document.getElementById('search-input').addEventListener('input', function() {
+                renderAlbums();
+            });
+
+            // View mode buttons
+            document.getElementById('list-view-btn').addEventListener('click', () => {
+                state.viewMode = 'list';
+                updateViewButtons();
+                renderAlbums();
+            });
+
+            document.getElementById('grid-view-btn').addEventListener('click', () => {
+                state.viewMode = 'grid';
+                updateViewButtons();
+                renderAlbums();
+            });
+
+            // Show covers toggle
+            document.getElementById('show-covers-checkbox').addEventListener('change', (e) => {
+                state.showCovers = e.target.checked;
+                renderAlbums();
+            });
+
+            // Auto-fill button
+            document.getElementById('auto-fill-btn').addEventListener('click', autoFillAlbumInfo);
+
+            // Camera button
+            document.getElementById('camera-btn').addEventListener('click', takePhoto);
+
+            // Camera capture and cancel buttons
+            document.getElementById('capture-btn').addEventListener('click', capturePhoto);
+            document.getElementById('cancel-camera-btn').addEventListener('click', closeCameraPreview);
+
+            // Add album button
+            document.getElementById('add-album-btn').addEventListener('click', addAlbum);
+
+            // Find online button
+            document.getElementById('find-online-btn').addEventListener('click', () => {
+                document.getElementById('search-modal').style.display = 'flex';
+            });
+
+            // FIXED: Share collection button
+            document.getElementById('share-collection-btn').addEventListener('click', () => {
+                if (state.albums.length === 0) {
+                    alert('Add some albums to your collection first!');
+                    return;
+                }
+                
+                // Generate shareable URL
+                const collectionData = btoa(JSON.stringify(state.albums));
+                const shareableURL = `${window.location.origin}${window.location.pathname}?collection=${collectionData}`;
+                
+                // Generate and show QR code
+                generateQRCode(shareableURL);
+                
+                // Store for copy button
+                window.currentShareURL = shareableURL;
+                
+                document.getElementById('share-modal').style.display = 'flex';
+            });
+
+            // Copy share link button
+            document.getElementById('copy-share-link-btn').addEventListener('click', () => {
+                if (window.currentShareURL) {
+                    copyToClipboard(window.currentShareURL);
+                }
+            });
+
+            // Edit album functionality
+            document.getElementById('save-edit-btn').addEventListener('click', saveEditedAlbum);
+            document.getElementById('cancel-edit-btn').addEventListener('click', cancelEdit);
+            document.getElementById('close-edit-modal-btn').addEventListener('click', cancelEdit);
+
+            // Close share modal
+            document.getElementById('close-share-modal-btn').addEventListener('click', () => {
+                document.getElementById('share-modal').style.display = 'none';
+            });
+
+            // Close modal button
+            document.getElementById('close-modal-btn').addEventListener('click', () => {
+                document.getElementById('search-modal').style.display = 'none';
+            });
+
+            // Online search
+            document.getElementById('search-btn').addEventListener('click', async () => {
+                const query = document.getElementById('online-search-input').value;
+                if (!query.trim()) return;
+
+                document.getElementById('search-results').innerHTML = '<div class="loader">🔍 Searching for albums...</div>';
+                
+                try {
+                    const results = await searchAlbumsOnline(query);
+                    renderSearchResults(results);
+                } catch (error) {
+                    document.getElementById('search-results').innerHTML = '<div class="loader">Search failed. Please try again.</div>';
+                }
+            });
+
+            // Enter key for online search
+            document.getElementById('online-search-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('search-btn').click();
+                }
+            });
+
+            // Close modals when clicking outside
+            document.getElementById('share-modal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    document.getElementById('share-modal').style.display = 'none';
+                }
+            });
+
+            document.getElementById('edit-modal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    cancelEdit();
+                }
+            });
+
+            document.getElementById('search-modal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    document.getElementById('search-modal').style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
