@@ -1257,16 +1257,18 @@
             renderAlbums();
         }
 
-        // Add album from search results
+        // Add album from search results (genre-aware)
         function addAlbumFromSearch(albumData) {
-            // Check for duplicates
-            const duplicate = state.albums.find(album => 
+            const currentAlbums = getCurrentAlbums();
+            
+            // Check for duplicates in current genre
+            const duplicate = currentAlbums.find(album => 
                 album.title.toLowerCase() === albumData.title.toLowerCase() && 
                 album.artist.toLowerCase() === albumData.artist.toLowerCase()
             );
 
             if (duplicate) {
-                alert('This album is already in your collection!');
+                alert(`This album is already in your ${state.currentGenre} collection!`);
                 return;
             }
 
@@ -1277,23 +1279,25 @@
                 year: albumData.year,
                 imageUri: albumData.imageUrl,
                 dateAdded: new Date().toISOString(),
-                source: 'online'
+                source: 'online',
+                genre: state.currentGenre
             };
 
-            state.albums.push(newAlbum);
+            addAlbumToCurrentGenre(newAlbum);
             saveAlbums();
             
             document.getElementById('search-modal').style.display = 'none';
             document.getElementById('online-search-input').value = '';
             document.getElementById('search-results').innerHTML = '';
             
-            showNotification('✅ Album added to your collection!');
+            showNotification(`✅ Album added to ${state.currentGenre} collection!`);
             renderAlbums();
         }
 
-        // Edit album functionality
+        // Edit album functionality (genre-aware)
         function editAlbum(albumId) {
-            const album = state.albums.find(a => a.id === albumId);
+            const currentAlbums = getCurrentAlbums();
+            const album = currentAlbums.find(a => a.id === albumId);
             if (!album) return;
 
             editingAlbumId = albumId;
@@ -1327,23 +1331,25 @@
                 return;
             }
 
+            const currentAlbums = getCurrentAlbums();
+            
             // Check for duplicates (exclude current album)
-            const duplicate = state.albums.find(album => 
+            const duplicate = currentAlbums.find(album => 
                 album.id !== editingAlbumId &&
                 album.title.toLowerCase() === title.toLowerCase() && 
                 album.artist.toLowerCase() === artist.toLowerCase()
             );
 
             if (duplicate) {
-                alert('This album is already in your collection!');
+                alert(`This album is already in your ${state.currentGenre} collection!`);
                 return;
             }
 
-            // Update the album
-            const albumIndex = state.albums.findIndex(a => a.id === editingAlbumId);
+            // Update the album in current genre
+            const albumIndex = currentAlbums.findIndex(a => a.id === editingAlbumId);
             if (albumIndex !== -1) {
-                state.albums[albumIndex] = {
-                    ...state.albums[albumIndex],
+                currentAlbums[albumIndex] = {
+                    ...currentAlbums[albumIndex],
                     title,
                     artist,
                     year,
@@ -1365,21 +1371,24 @@
             editingAlbumId = null;
         }
 
-        // Delete album
+        // Delete album (genre-aware)
         function deleteAlbum(albumId) {
             if (confirm('Are you sure you want to remove this album from your collection?')) {
-                state.albums = state.albums.filter(album => album.id !== albumId);
+                const currentAlbums = getCurrentAlbums();
+                const newAlbums = currentAlbums.filter(album => album.id !== albumId);
+                state.albums[state.currentGenre] = newAlbums;
                 saveAlbums();
                 renderAlbums();
                 showNotification('🗑️ Album deleted from collection');
             }
         }
 
-        // Filter and sort albums
+        // Filter and sort albums (genre-aware)
         function getFilteredAndSortedAlbums() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const currentAlbums = getCurrentAlbums();
             
-            let filtered = state.albums.filter(album => {
+            let filtered = currentAlbums.filter(album => {
                 const titleMatch = album.title.toLowerCase().includes(searchTerm);
                 const artistMatch = album.artist.toLowerCase().includes(searchTerm);
                 return titleMatch || artistMatch;
@@ -1388,18 +1397,20 @@
             return filtered.sort((a, b) => a.title.localeCompare(b.title));
         }
 
-        // Render albums (with list view support)
+        // Render albums (with list view support, genre-aware)
         function renderAlbums() {
             const container = document.getElementById('albums-container');
             const data = getFilteredAndSortedAlbums();
+            const currentAlbums = getCurrentAlbums();
+            const genreName = state.currentGenre.charAt(0).toUpperCase() + state.currentGenre.slice(1);
             
-            // Update collection count
-            document.getElementById('collection-count').textContent = `${state.albums.length} albums in collection`;
+            // Update collection count with genre info
+            document.getElementById('collection-count').textContent = `${currentAlbums.length} albums in ${genreName} collection`;
             
-            if (state.albums.length === 0) {
+            if (currentAlbums.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h3>No albums in your collection yet!</h3>
+                        <h3>No albums in your ${genreName} collection yet!</h3>
                         <p>Start by searching for albums online or adding them manually.</p>
                     </div>
                 `;
@@ -1411,7 +1422,7 @@
             if (searchTerm && data.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h3>No albums match your search</h3>
+                        <h3>No albums match your search in ${genreName}</h3>
                         <p>Try a different search term or clear the search to see all albums.</p>
                     </div>
                 `;
