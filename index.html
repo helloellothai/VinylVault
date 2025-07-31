@@ -5,13 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VinylVault - Record Collection Manager</title>
     
-    <!-- PWA Meta Tags -->
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlZpbnlsVmF1bHQiLAogICJzaG9ydF9uYW1lIjogIlZpbnlsVmF1bHQiLAogICJkZXNjcmlwdGlvbiI6ICJSZWNvcmQgQ29sbGVjdGlvbiBNYW5hZ2VyIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmNWY1ZjUiLAogICJ0aGVtZV9jb2xvciI6ICIjMDA3QUZGIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTVRJNElpQm9aV2xuYUhROUlqRXlPQ0lpSUhacFpYZENiM2c5SWpBZ01DQXhNamdnTVRJNElpQjRiV3h1Y3owaWFIUjBjRG92TDNkM2R5NTNNeTU2Y21jdk1qQXdNQzl6ZG1jaVBnbzhZMmx5WTJ4bElHTjRQU0kyTkNJZ1kza2xJalUwSWlCeVBTSXpNaUlnWm1sc2JEMGlJekF3TjBGR1JpSXZQZ284ZEdWNGRDQjRQU0kyTkNJZ2VUMGlOekVpSUdacGJHdzlJaU5tWm1ZaUlHWnZiblF0Wm1GdGFXeDVQU0pCY21saGJDNGdZbTlzWkNJZ1ptOXVkQzF6YVRwbFBTSXpNaUlnZEdWNGRBczBZVzVqYUc5eVBTSnRhV1JrYkdVaVBpOThmall3UHp3dmRHVjRkRDQ4TDNOMlp6ND0iLAogICAgICAic2l6ZXMiOiAiMTI4eDEyOCIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiCiAgICB9CiAgXQp9">
-    <meta name="theme-color" content="#007AFF">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="VinylVault">
-    
     <style>
         * {
             margin: 0;
@@ -141,6 +134,28 @@
             display: block;
         }
         
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .checkbox {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
         .album-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -228,6 +243,74 @@
             height: 25px;
             cursor: pointer;
             font-size: 12px;
+            touch-action: manipulation;
+        }
+        
+        .list-container {
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .list-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 100px 100px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            font-weight: bold;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .list-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 100px 100px;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            align-items: center;
+        }
+        
+        .list-album-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .list-image {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-right: 12px;
+        }
+        
+        .list-placeholder {
+            width: 50px;
+            height: 50px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #6c757d;
+            margin-right: 12px;
+        }
+        
+        .list-album-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #212529;
+        }
+        
+        .delete-button-small {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
             touch-action: manipulation;
         }
         
@@ -409,96 +492,6 @@
             z-index: 10;
         }
         
-        .toggle-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 10px;
-            background-color: white;
-            border-radius: 8px;
-        }
-        
-        .toggle-label {
-            display: flex;
-            align-items: center;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-        
-        .checkbox {
-            margin-right: 10px;
-            transform: scale(1.2);
-        }
-
-        .list-container {
-            background-color: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        
-        .list-header {
-            display: grid;
-            grid-template-columns: 2fr 1fr 100px 100px;
-            background-color: #f8f9fa;
-            padding: 15px;
-            font-weight: bold;
-            border-bottom: 2px solid #dee2e6;
-        }
-        
-        .list-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr 100px 100px;
-            padding: 12px 15px;
-            border-bottom: 1px solid #f0f0f0;
-            align-items: center;
-        }
-        
-        .list-album-info {
-            display: flex;
-            align-items: center;
-        }
-        
-        .list-image {
-            width: 50px;
-            height: 50px;
-            object-fit: cover;
-            border-radius: 6px;
-            margin-right: 12px;
-        }
-        
-        .list-placeholder {
-            width: 50px;
-            height: 50px;
-            background-color: #e9ecef;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: #6c757d;
-            margin-right: 12px;
-        }
-        
-        .list-album-title {
-            font-weight: 600;
-            font-size: 16px;
-            color: #212529;
-        }
-        
-        .delete-button-small {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            font-weight: 500;
-            touch-action: manipulation;
-        }
-        
         .focus-label {
             position: absolute;
             top: -35px;
@@ -512,7 +505,41 @@
             font-weight: bold;
             white-space: nowrap;
         }
-
+        
+        .corner-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .corner-tl {
+            top: -2px;
+            left: -2px;
+            border-top: 4px solid #00FF00;
+            border-left: 4px solid #00FF00;
+        }
+        
+        .corner-tr {
+            top: -2px;
+            right: -2px;
+            border-top: 4px solid #00FF00;
+            border-right: 4px solid #00FF00;
+        }
+        
+        .corner-bl {
+            bottom: -2px;
+            left: -2px;
+            border-bottom: 4px solid #00FF00;
+            border-left: 4px solid #00FF00;
+        }
+        
+        .corner-br {
+            bottom: -2px;
+            right: -2px;
+            border-bottom: 4px solid #00FF00;
+            border-right: 4px solid #00FF00;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -583,7 +610,7 @@
                 🔲 Grid View
             </button>
         </div>
-
+        
         <!-- Show/Hide Covers Toggle for List View -->
         <div class="toggle-row" id="covers-toggle" style="display: none;">
             <label class="toggle-label">
@@ -623,6 +650,10 @@
                 <video id="camera-video" class="camera-video" autoplay playsinline muted></video>
                 <div class="focus-frame">
                     <div class="focus-label">📱 CAPTURE WINDOW - Center album here</div>
+                    <div class="corner-marker corner-tl"></div>
+                    <div class="corner-marker corner-tr"></div>
+                    <div class="corner-marker corner-bl"></div>
+                    <div class="corner-marker corner-br"></div>
                 </div>
                 <div style="margin-top: 15px;">
                     <button class="primary-button" id="capture-btn" style="margin-right: 10px;">
@@ -740,7 +771,7 @@
         </div>
     </div>
 
-    <!-- QR Code Library - ESSENTIAL FOR QR CODES TO WORK -->
+    <!-- QR Code Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
 
     <script>
@@ -755,7 +786,7 @@
         let editingAlbumId = null;
         let currentCameraStream = null;
 
-        // Load albums from localStorage AND URL parameters (FIXED CROSS-DEVICE SYNC)
+        // Load albums from localStorage AND URL parameters
         function loadAlbums() {
             try {
                 const saved = localStorage.getItem('vinylCollection');
@@ -763,7 +794,7 @@
                     state.albums = JSON.parse(saved);
                 }
                 
-                // CRITICAL: Check for shared collection in URL
+                // Check for shared collection in URL
                 loadFromURL();
             } catch (error) {
                 console.error('Error loading albums:', error);
@@ -779,7 +810,7 @@
             }
         }
 
-        // FIXED: Load collection from URL parameter (CROSS-DEVICE SYNC)
+        // Load collection from URL parameter
         function loadFromURL() {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -823,7 +854,7 @@
             }, 4000);
         }
 
-        // FIXED: Generate QR Code using proper library
+        // Generate QR Code using proper library
         function generateQRCode(text) {
             if (!text) {
                 return '<div style="color: #999; padding: 40px;">No collection to share</div>';
@@ -923,7 +954,7 @@
             }
         }
 
-        // RESTORED: Auto-fill album info from online search
+        // Auto-fill album info from online search
         async function autoFillAlbumInfo() {
             const titleInput = document.getElementById('title-input');
             const artistInput = document.getElementById('artist-input');
@@ -972,7 +1003,7 @@
             }
         }
 
-        // RESTORED: Enhanced camera functionality with focus frame
+        // Enhanced camera functionality with focus frame
         async function takePhoto() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -1018,7 +1049,7 @@
             input.click();
         }
 
-        // RESTORED: Capture photo from camera with focus frame cropping
+        // Capture photo from camera with focus frame cropping
         async function capturePhoto() {
             const video = document.getElementById('camera-video');
             const canvas = document.getElementById('capture-canvas');
@@ -1085,24 +1116,8 @@
             previewImg.src = state.currentImageUri;
             previewImg.style.display = 'block';
             
-            // Try image recognition (placeholder - you can add Google Vision API here)
-            const titleInput = document.getElementById('title-input');
-            const artistInput = document.getElementById('artist-input');
-            
-            // Show that we're trying to recognize the album
-            titleInput.placeholder = '🔍 Analyzing album cover...';
-            artistInput.placeholder = '🔍 Analyzing album cover...';
-            
-            // Simulate processing time
-            setTimeout(() => {
-                titleInput.placeholder = 'Album Title';
-                artistInput.placeholder = 'Artist';
-                showNotification('📷 Photo captured! Enter album details manually or use auto-fill.');
-                
-                // Here you could add Google Vision API integration:
-                // const recognizedInfo = await recognizeAlbumFromImage(state.currentImageUri);
-                // if (recognizedInfo) { ... }
-            }, 1500);
+            // Show that we captured the photo
+            showNotification('📷 Photo captured! Enter album details manually or use auto-fill.');
         }
 
         // Close camera preview
@@ -1196,7 +1211,7 @@
             renderAlbums();
         }
 
-        // RESTORED: Edit album functionality
+        // Edit album functionality
         function editAlbum(albumId) {
             const album = state.albums.find(a => a.id === albumId);
             if (!album) return;
@@ -1344,7 +1359,7 @@
             }
         }
 
-        // RESTORED: Render album card with edit functionality
+        // Render album card with edit functionality
         function renderAlbumCard(item) {
             return `
                 <div class="album-card">
@@ -1393,6 +1408,9 @@
             document.getElementById(activeBtn).className = 'primary-button';
             document.getElementById('covers-toggle').style.display = state.viewMode === 'list' ? 'flex' : 'none';
         }
+
+        // Render search results
+        function renderSearchResults(results) {
             const container = document.getElementById('search-results');
             
             if (results.length === 0) {
@@ -1416,8 +1434,6 @@
             `;
         }
 
-        // Render search results
-        function renderSearchResults(results) {
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
             loadAlbums();
@@ -1454,7 +1470,7 @@
             // Camera button
             document.getElementById('camera-btn').addEventListener('click', takePhoto);
 
-            // Camera capture and cancel buttons
+            // Camera capture and cancel buttons  
             document.getElementById('capture-btn').addEventListener('click', capturePhoto);
             document.getElementById('cancel-camera-btn').addEventListener('click', closeCameraPreview);
 
@@ -1466,7 +1482,7 @@
                 document.getElementById('search-modal').style.display = 'flex';
             });
 
-            // FIXED: Share collection button
+            // Share collection button
             document.getElementById('share-collection-btn').addEventListener('click', () => {
                 if (state.albums.length === 0) {
                     alert('Add some albums to your collection first!');
