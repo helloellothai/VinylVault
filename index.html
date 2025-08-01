@@ -1617,17 +1617,9 @@
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🔧 VinylVault loading...');
-            
-            try {
-                loadAlbums();
-                renderAlbums();
-                updateViewButtons();
-                console.log('✅ App initialized successfully');
-            } catch (error) {
-                console.error('❌ Initialization failed:', error);
-                alert('App failed to load. Check console for errors.');
-            }
+            loadAlbums();
+            renderAlbums();
+            updateViewButtons();
 
             // Genre selector change (fixed create new genre)
             document.getElementById('genre-selector').addEventListener('change', (e) => {
@@ -1700,21 +1692,15 @@
             // Auto-fill button
             document.getElementById('auto-fill-btn').addEventListener('click', autoFillAlbumInfo);
 
-            // Camera button (with better error handling)
-            document.getElementById('camera-btn').addEventListener('click', function() {
-                console.log('📷 Camera button clicked');
-                takePhoto();
-            });
+            // Camera button
+            document.getElementById('camera-btn').addEventListener('click', takePhoto);
 
             // Camera capture and cancel buttons  
             document.getElementById('capture-btn').addEventListener('click', capturePhoto);
             document.getElementById('cancel-camera-btn').addEventListener('click', closeCameraPreview);
 
-            // Add album button (with logging)
-            document.getElementById('add-album-btn').addEventListener('click', function() {
-                console.log('➕ Add album button clicked');
-                addAlbum();
-            });
+            // Add album button
+            document.getElementById('add-album-btn').addEventListener('click', addAlbum);
 
             // Find online button
             document.getElementById('find-online-btn').addEventListener('click', () => {
@@ -1766,9 +1752,8 @@
                 document.getElementById('search-modal').style.display = 'none';
             });
 
-            // Online search (with error handling)
-            document.getElementById('search-btn').addEventListener('click', async function() {
-                console.log('🔍 Search button clicked');
+            // Online search
+            document.getElementById('search-btn').addEventListener('click', async () => {
                 const query = document.getElementById('online-search-input').value;
                 if (!query.trim()) return;
 
@@ -1778,7 +1763,6 @@
                     const results = await searchAlbumsOnline(query);
                     renderSearchResults(results);
                 } catch (error) {
-                    console.error('Search failed:', error);
                     document.getElementById('search-results').innerHTML = '<div class="loader">Search failed. Please try again.</div>';
                 }
             });
