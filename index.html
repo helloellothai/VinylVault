@@ -1007,11 +1007,38 @@
                 console.log('🔗 Found share ID in URL:', shareId);
                 const success = await loadCollaborativeCollection(shareId);
                 if (success) {
-                    // Clean URL after loading
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    // Store collaborative session info (don't clean URL immediately)
+                    sessionStorage.setItem('vinylCollaborativeSession', JSON.stringify({
+                        collectionId: shareId,
+                        genre: state.currentGenre,
+                        timestamp: Date.now()
+                    }));
+                    console.log('💾 Stored collaborative session');
                 }
                 return success;
             }
+            
+            // Check for stored collaborative session
+            const storedSession = sessionStorage.getItem('vinylCollaborativeSession');
+            if (storedSession) {
+                try {
+                    const session = JSON.parse(storedSession);
+                    // Session expires after 24 hours
+                    if (Date.now() - session.timestamp < 24 * 60 * 60 * 1000) {
+                        console.log('🔄 Restoring collaborative session:', session.collectionId);
+                        const success = await loadCollaborativeCollection(session.collectionId);
+                        if (success) {
+                            console.log('✅ Collaborative session restored');
+                            return true;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error restoring collaborative session:', error);
+                }
+                // Clear invalid session
+                sessionStorage.removeItem('vinylCollaborativeSession');
+            }
+            
             return false;
         }
 
@@ -1952,9 +1979,11 @@
                     state.currentGenre = genreId;
                     e.target.value = genreId;
                     
-                    // Reset collaborative state when switching genres
-                    state.isCollaborative = false;
-                    state.sharedCollectionId = null;
+                    // Reset collaborative state when switching genres (unless we're in a collaborative session)
+                    if (!sessionStorage.getItem('vinylCollaborativeSession')) {
+                        state.isCollaborative = false;
+                        state.sharedCollectionId = null;
+                    }
                     
                     saveLocalAlbums();
                     renderAlbums();
@@ -1962,9 +1991,11 @@
                 } else {
                     state.currentGenre = e.target.value;
                     
-                    // Reset collaborative state when switching genres
-                    state.isCollaborative = false;
-                    state.sharedCollectionId = null;
+                    // Only reset collaborative state if not in active session
+                    if (!sessionStorage.getItem('vinylCollaborativeSession')) {
+                        state.isCollaborative = false;
+                        state.sharedCollectionId = null;
+                    }
                     
                     renderAlbums();
                 }
