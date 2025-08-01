@@ -1606,7 +1606,7 @@
             renderAlbums();
             updateViewButtons();
 
-            // Genre selector change (improved with better validation)
+            // Genre selector change (fixed create new genre)
             document.getElementById('genre-selector').addEventListener('change', (e) => {
                 if (e.target.value === 'custom') {
                     const genreName = prompt('Enter new genre name (e.g., "Reggae", "Blues"):');
@@ -1616,7 +1616,8 @@
                     }
                     
                     const genreEmoji = prompt('Enter emoji for this genre (e.g., 🎵, 🎸, 🎷):') || '🎵';
-                    const genreId = genreName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+                    const cleanName = genreName.trim();
+                    const genreId = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
                     
                     // Check if genre already exists
                     if (state.albums[genreId] || state.customGenres.find(g => g.id === genreId)) {
@@ -1628,8 +1629,8 @@
                     // Add to custom genres
                     state.customGenres.push({
                         id: genreId,
-                        name: genreName.trim(),
-                        emoji: genreEmoji
+                        name: cleanName,
+                        emoji: genreEmoji.trim()
                     });
                     
                     // Initialize empty collection for new genre
@@ -1642,7 +1643,7 @@
                     
                     saveAlbums();
                     renderAlbums();
-                    showNotification(`✅ Created new genre: ${genreEmoji} ${genreName}!`);
+                    showNotification(`✅ Created new genre: ${genreEmoji} ${cleanName}!`);
                 } else {
                     state.currentGenre = e.target.value;
                     renderAlbums();
@@ -1691,7 +1692,7 @@
                 document.getElementById('search-modal').style.display = 'flex';
             });
 
-            // Share collection button (short link system)
+            // Share collection button (back to URL encoding for cross-device sharing)
             document.getElementById('share-collection-btn').addEventListener('click', () => {
                 const currentAlbums = getCurrentAlbums();
                 if (currentAlbums.length === 0) {
@@ -1699,24 +1700,13 @@
                     return;
                 }
                 
-                // Generate short share ID and store in localStorage
-                const shareId = generateShareId();
-                const shareData = {
-                    albums: currentAlbums,
-                    genre: state.currentGenre,
-                    timestamp: Date.now()
-                };
-                
-                // Store share data
-                localStorage.setItem(`vinylShare_${shareId}`, JSON.stringify(shareData));
-                
-                // Generate short URL
-                const shareableURL = `${window.location.origin}${window.location.pathname}?share=${shareId}`;
+                // Use URL encoding for cross-device sharing
+                const collectionData = btoa(JSON.stringify(currentAlbums));
+                const shareableURL = `${window.location.origin}${window.location.pathname}?collection=${collectionData}&genre=${state.currentGenre}`;
                 
                 console.log(`Sharing ${currentAlbums.length} albums from ${state.currentGenre} collection`);
-                console.log(`Short URL: ${shareableURL}`);
                 
-                // Show share link in modal (no QR code)
+                // Show share link in modal
                 showShareLink(shareableURL);
                 
                 // Store for copy button
