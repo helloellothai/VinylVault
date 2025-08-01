@@ -598,6 +598,7 @@
                 <option value="country">🤠 Country Collection</option>
                 <option value="classical">🎼 Classical Collection</option>
                 <option value="electronic">🎛️ Electronic Collection</option>
+                <option value="christian">✝️ Christian Collection</option>
                 <option value="custom">➕ Create New Genre</option>
             </select>
         </div>
@@ -709,7 +710,7 @@
 
             <div style="text-align: center;">
                 <p style="margin-bottom: 20px; color: #666;">
-                    Scan this QR code with any phone camera to access your collection!
+                    Share your collection with this short link!
                 </p>
 
                 <div id="qr-code-display" style="
@@ -718,16 +719,12 @@
                     border-radius: 12px; 
                     display: inline-block;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                    min-height: 240px;
+                    min-height: 120px;
+                    width: 100%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                ">Loading QR code...</div>
-
-                <p style="color: #888; font-size: 0.9rem; margin-top: 15px;">
-                    📱 Point any phone camera at this code<br>
-                    🎵 Opens your collection instantly
-                </p>
+                ">Loading share link...</div>
 
                 <div style="margin-top: 20px;">
                     <button class="primary-button" id="copy-share-link-btn">
@@ -786,9 +783,6 @@
         </div>
     </div>
 
-    <!-- QR Code Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
-
     <script>
         // App state with genre support
         let state = {
@@ -829,7 +823,7 @@
                 }
 
                 // Initialize default genres
-                ['main', 'rock', 'jazz', 'pop', 'hip-hop', 'country', 'classical', 'electronic'].forEach(genre => {
+                ['main', 'rock', 'jazz', 'pop', 'hip-hop', 'country', 'classical', 'electronic', 'christian'].forEach(genre => {
                     if (!state.albums[genre]) {
                         state.albums[genre] = [];
                     }
@@ -886,10 +880,50 @@
             });
         }
 
-        // Load collection from URL parameter (genre-aware)
+        // Load collection from URL parameter (short link system)
         function loadFromURL() {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
+                
+                // Check for short share link
+                const shareId = urlParams.get('share');
+                if (shareId) {
+                    const shareData = localStorage.getItem(`vinylShare_${shareId}`);
+                    if (shareData) {
+                        const { albums, genre } = JSON.parse(shareData);
+                        
+                        // Ensure target genre exists
+                        if (!state.albums[genre]) {
+                            state.albums[genre] = [];
+                        }
+                        
+                        // Merge with existing collection (avoid duplicates)
+                        const existingTitles = new Set(state.albums[genre].map(album => `${album.title}-${album.artist}`.toLowerCase()));
+                        const newAlbums = albums.filter(album => 
+                            !existingTitles.has(`${album.title}-${album.artist}`.toLowerCase())
+                        );
+                        
+                        if (newAlbums.length > 0) {
+                            state.albums[genre].push(...newAlbums);
+                            saveAlbums();
+                            
+                            // Switch to the shared genre
+                            state.currentGenre = genre;
+                            document.getElementById('genre-selector').value = genre;
+                            
+                            console.log(`Added ${newAlbums.length} albums to ${genre} collection`);
+                            showNotification(`✅ Added ${newAlbums.length} albums to ${genre.charAt(0).toUpperCase() + genre.slice(1)} collection!`);
+                        } else {
+                            showNotification(`📚 All albums from shared ${genre} collection already in your library!`);
+                        }
+                        
+                        // Clean URL after loading
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        return;
+                    }
+                }
+                
+                // Legacy long URL support
                 const collectionData = urlParams.get('collection');
                 const genre = urlParams.get('genre') || 'main';
                 
@@ -941,43 +975,25 @@
             }, 4000);
         }
 
-        // Generate QR Code using proper library
-        function generateQRCode(text) {
-            if (!text) {
-                return '<div style="color: #999; padding: 40px;">No collection to share</div>';
-            }
-            
+        // Generate short share ID
+        function generateShareId() {
+            return Math.random().toString(36).substring(2, 8) + Date.now().toString(36);
+        }
+
+        // Show share link without QR code
+        function showShareLink(url) {
             const qrContainer = document.getElementById('qr-code-display');
-            qrContainer.innerHTML = '';
-            
-            // Check if QRCode library is loaded
-            if (typeof QRCode === 'undefined') {
-                console.error('QRCode library not loaded');
-                qrContainer.innerHTML = '<p style="color: red;">QR Code library not loaded. Please check your internet connection.</p>';
-                return;
-            }
-            
-            // Create canvas for QR code
-            const canvas = document.createElement('canvas');
-            qrContainer.appendChild(canvas);
-            
-            // Generate QR code using the library
-            QRCode.toCanvas(canvas, text, {
-                width: 200,
-                height: 200,
-                margin: 2,
-                color: {
-                    dark: '#2c3e50',
-                    light: '#ffffff'
-                }
-            }, function (error) {
-                if (error) {
-                    console.error('QR Code Error:', error);
-                    qrContainer.innerHTML = '<p style="color: red;">QR Code generation failed</p>';
-                } else {
-                    console.log('✅ QR code generated successfully');
-                }
-            });
+            qrContainer.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <p style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">📱 Share Link</p>
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 14px; margin-bottom: 15px;">
+                        ${url}
+                    </div>
+                    <p style="color: #666; font-size: 14px;">
+                        Send this link to share your ${state.currentGenre} collection!
+                    </p>
+                </div>
+            `;
         }
 
         // Copy to clipboard with fallback
@@ -1279,8 +1295,7 @@
                 year: albumData.year,
                 imageUri: albumData.imageUrl,
                 dateAdded: new Date().toISOString(),
-                source: 'online',
-                genre: state.currentGenre
+                source: 'online'
             };
 
             addAlbumToCurrentGenre(newAlbum);
@@ -1294,7 +1309,7 @@
             renderAlbums();
         }
 
-        // Edit album functionality (genre-aware)
+        // Edit album functionality (fixed for genre-aware albums)
         function editAlbum(albumId) {
             const currentAlbums = getCurrentAlbums();
             const album = currentAlbums.find(a => a.id === albumId);
@@ -1319,6 +1334,67 @@
             document.getElementById('edit-modal').style.display = 'flex';
         }
 
+        // Move album between genres
+        function moveAlbum(albumId) {
+            const currentAlbums = getCurrentAlbums();
+            const album = currentAlbums.find(a => a.id === albumId);
+            if (!album) return;
+
+            // Get all available genres
+            const allGenres = ['main', 'rock', 'jazz', 'pop', 'hip-hop', 'country', 'classical', 'electronic', 'christian'];
+            const customGenreNames = state.customGenres.map(g => g.id);
+            const availableGenres = [...allGenres, ...customGenreNames].filter(g => g !== state.currentGenre);
+
+            // Show genre selection
+            const genreNames = {
+                'main': '🎵 Main Collection',
+                'rock': '🎸 Rock Collection', 
+                'jazz': '🎷 Jazz Collection',
+                'pop': '🎤 Pop Collection',
+                'hip-hop': '🎤 Hip-Hop Collection',
+                'country': '🤠 Country Collection',
+                'classical': '🎼 Classical Collection',
+                'electronic': '🎛️ Electronic Collection',
+                'christian': '✝️ Christian Collection'
+            };
+
+            // Add custom genre names
+            state.customGenres.forEach(g => {
+                genreNames[g.id] = `${g.emoji} ${g.name}`;
+            });
+
+            const genreList = availableGenres.map(g => `• ${genreNames[g] || g}`).join('\n');
+            const targetGenre = prompt(`Move "${album.title}" to which genre?\n\nAvailable genres:\n${genreList}\n\nEnter genre name (e.g., "rock", "jazz"):`);
+
+            if (targetGenre && availableGenres.includes(targetGenre.toLowerCase())) {
+                const target = targetGenre.toLowerCase();
+                
+                // Ensure target genre exists
+                if (!state.albums[target]) {
+                    state.albums[target] = [];
+                }
+
+                // Check for duplicates in target genre
+                const duplicate = state.albums[target].find(a => 
+                    a.title.toLowerCase() === album.title.toLowerCase() && 
+                    a.artist.toLowerCase() === album.artist.toLowerCase()
+                );
+
+                if (duplicate) {
+                    alert(`"${album.title}" already exists in ${genreNames[target]}!`);
+                    return;
+                }
+
+                // Move album
+                state.albums[target].push(album);
+                state.albums[state.currentGenre] = state.albums[state.currentGenre].filter(a => a.id !== albumId);
+                
+                saveAlbums();
+                renderAlbums();
+                showNotification(`📁 Moved "${album.title}" to ${genreNames[target]}!`);
+            }
+        }
+
         function saveEditedAlbum() {
             if (!editingAlbumId) return;
 
@@ -1332,7 +1408,7 @@
             }
 
             const currentAlbums = getCurrentAlbums();
-            
+
             // Check for duplicates (exclude current album)
             const duplicate = currentAlbums.find(album => 
                 album.id !== editingAlbumId &&
@@ -1341,15 +1417,15 @@
             );
 
             if (duplicate) {
-                alert(`This album is already in your ${state.currentGenre} collection!`);
+                alert('This album is already in your collection!');
                 return;
             }
 
             // Update the album in current genre
-            const albumIndex = currentAlbums.findIndex(a => a.id === editingAlbumId);
+            const albumIndex = state.albums[state.currentGenre].findIndex(a => a.id === editingAlbumId);
             if (albumIndex !== -1) {
-                currentAlbums[albumIndex] = {
-                    ...currentAlbums[albumIndex],
+                state.albums[state.currentGenre][albumIndex] = {
+                    ...state.albums[state.currentGenre][albumIndex],
                     title,
                     artist,
                     year,
@@ -1374,9 +1450,7 @@
         // Delete album (genre-aware)
         function deleteAlbum(albumId) {
             if (confirm('Are you sure you want to remove this album from your collection?')) {
-                const currentAlbums = getCurrentAlbums();
-                const newAlbums = currentAlbums.filter(album => album.id !== albumId);
-                state.albums[state.currentGenre] = newAlbums;
+                state.albums[state.currentGenre] = state.albums[state.currentGenre].filter(album => album.id !== albumId);
                 saveAlbums();
                 renderAlbums();
                 showNotification('🗑️ Album deleted from collection');
@@ -1397,20 +1471,20 @@
             return filtered.sort((a, b) => a.title.localeCompare(b.title));
         }
 
-        // Render albums (with list view support, genre-aware)
+        // Render albums (with list view support and genre-aware)
         function renderAlbums() {
             const container = document.getElementById('albums-container');
             const data = getFilteredAndSortedAlbums();
             const currentAlbums = getCurrentAlbums();
-            const genreName = state.currentGenre.charAt(0).toUpperCase() + state.currentGenre.slice(1);
             
-            // Update collection count with genre info
-            document.getElementById('collection-count').textContent = `${currentAlbums.length} albums in ${genreName} collection`;
+            // Update collection count for current genre
+            const genreDisplayName = document.getElementById('genre-selector').selectedOptions[0].textContent;
+            document.getElementById('collection-count').textContent = `${currentAlbums.length} albums in ${genreDisplayName}`;
             
             if (currentAlbums.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h3>No albums in your ${genreName} collection yet!</h3>
+                        <h3>No albums in your ${state.currentGenre} collection yet!</h3>
                         <p>Start by searching for albums online or adding them manually.</p>
                     </div>
                 `;
@@ -1422,7 +1496,7 @@
             if (searchTerm && data.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h3>No albums match your search in ${genreName}</h3>
+                        <h3>No albums match your search</h3>
                         <p>Try a different search term or clear the search to see all albums.</p>
                     </div>
                 `;
@@ -1450,12 +1524,13 @@
             }
         }
 
-        // Render album card with edit functionality
+        // Render album card with edit and move functionality
         function renderAlbumCard(item) {
             return `
                 <div class="album-card">
                     <button class="delete-button" onclick="deleteAlbum('${item.id}')" title="Delete album">×</button>
                     <button class="edit-button" onclick="editAlbum('${item.id}')" title="Edit album">✏️</button>
+                    <button class="edit-button" onclick="moveAlbum('${item.id}')" title="Move to different genre" style="right: 70px; background-color: #FF9500;">📁</button>
                     ${item.imageUri ? 
                         `<img src="${item.imageUri}" alt="${item.title}" class="album-image" />` :
                         `<div class="placeholder-image">♪</div>`
@@ -1531,35 +1606,43 @@
             renderAlbums();
             updateViewButtons();
 
-            // Genre selector change
+            // Genre selector change (improved with better validation)
             document.getElementById('genre-selector').addEventListener('change', (e) => {
                 if (e.target.value === 'custom') {
                     const genreName = prompt('Enter new genre name (e.g., "Reggae", "Blues"):');
-                    const genreEmoji = prompt('Enter emoji for this genre (e.g., 🎵, 🎸, 🎷):') || '🎵';
-                    
-                    if (genreName && genreName.trim()) {
-                        const genreId = genreName.toLowerCase().replace(/\s+/g, '-');
-                        
-                        // Add to custom genres
-                        state.customGenres.push({
-                            id: genreId,
-                            name: genreName.trim(),
-                            emoji: genreEmoji
-                        });
-                        
-                        // Initialize empty collection for new genre
-                        state.albums[genreId] = [];
-                        
-                        // Update selector and switch to new genre
-                        updateGenreSelector();
-                        state.currentGenre = genreId;
-                        e.target.value = genreId;
-                        
-                        saveAlbums();
-                        renderAlbums();
-                    } else {
+                    if (!genreName || !genreName.trim()) {
                         e.target.value = state.currentGenre; // Reset if cancelled
+                        return;
                     }
+                    
+                    const genreEmoji = prompt('Enter emoji for this genre (e.g., 🎵, 🎸, 🎷):') || '🎵';
+                    const genreId = genreName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+                    
+                    // Check if genre already exists
+                    if (state.albums[genreId] || state.customGenres.find(g => g.id === genreId)) {
+                        alert('This genre already exists!');
+                        e.target.value = state.currentGenre;
+                        return;
+                    }
+                    
+                    // Add to custom genres
+                    state.customGenres.push({
+                        id: genreId,
+                        name: genreName.trim(),
+                        emoji: genreEmoji
+                    });
+                    
+                    // Initialize empty collection for new genre
+                    state.albums[genreId] = [];
+                    
+                    // Update selector and switch to new genre
+                    updateGenreSelector();
+                    state.currentGenre = genreId;
+                    e.target.value = genreId;
+                    
+                    saveAlbums();
+                    renderAlbums();
+                    showNotification(`✅ Created new genre: ${genreEmoji} ${genreName}!`);
                 } else {
                     state.currentGenre = e.target.value;
                     renderAlbums();
@@ -1608,7 +1691,7 @@
                 document.getElementById('search-modal').style.display = 'flex';
             });
 
-            // Share collection button (genre-aware, no album limit)
+            // Share collection button (short link system)
             document.getElementById('share-collection-btn').addEventListener('click', () => {
                 const currentAlbums = getCurrentAlbums();
                 if (currentAlbums.length === 0) {
@@ -1616,15 +1699,25 @@
                     return;
                 }
                 
-                // Generate shareable URL with genre
-                const collectionData = btoa(JSON.stringify(currentAlbums));
-                const shareableURL = `${window.location.origin}${window.location.pathname}?collection=${collectionData}&genre=${state.currentGenre}`;
+                // Generate short share ID and store in localStorage
+                const shareId = generateShareId();
+                const shareData = {
+                    albums: currentAlbums,
+                    genre: state.currentGenre,
+                    timestamp: Date.now()
+                };
+                
+                // Store share data
+                localStorage.setItem(`vinylShare_${shareId}`, JSON.stringify(shareData));
+                
+                // Generate short URL
+                const shareableURL = `${window.location.origin}${window.location.pathname}?share=${shareId}`;
                 
                 console.log(`Sharing ${currentAlbums.length} albums from ${state.currentGenre} collection`);
-                console.log(`URL length: ${shareableURL.length} characters`);
+                console.log(`Short URL: ${shareableURL}`);
                 
-                // Generate and show QR code (removed artificial limit)
-                generateQRCode(shareableURL);
+                // Show share link in modal (no QR code)
+                showShareLink(shareableURL);
                 
                 // Store for copy button
                 window.currentShareURL = shareableURL;
