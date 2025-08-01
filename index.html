@@ -980,8 +980,23 @@
             return Math.random().toString(36).substring(2, 8) + Date.now().toString(36);
         }
 
-        // Show share link without QR code
-        function showShareLink(url) {
+        // Shorten URL using TinyURL API
+        async function shortenUrl(longUrl) {
+            try {
+                const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+                const shortUrl = await response.text();
+                
+                if (shortUrl.startsWith('https://tinyurl.com/')) {
+                    return shortUrl;
+                } else {
+                    console.error('TinyURL failed:', shortUrl);
+                    return longUrl; // Fallback to long URL
+                }
+            } catch (error) {
+                console.error('URL shortening failed:', error);
+                return longUrl; // Fallback to long URL
+            }
+        }
             const qrContainer = document.getElementById('qr-code-display');
             qrContainer.innerHTML = `
                 <div style="padding: 20px; text-align: center;">
@@ -1706,8 +1721,8 @@
                 
                 console.log(`Sharing ${currentAlbums.length} albums from ${state.currentGenre} collection`);
                 
-                // Show share link in modal
-                showShareLink(shareableURL);
+                // Show share link in modal (with URL shortening)
+                await showShareLink(shareableURL);
                 
                 // Store for copy button
                 window.currentShareURL = shareableURL;
