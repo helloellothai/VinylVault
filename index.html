@@ -1023,14 +1023,11 @@
             if (storedSession) {
                 try {
                     const session = JSON.parse(storedSession);
-                    // Session expires after 24 hours
-                    if (Date.now() - session.timestamp < 24 * 60 * 60 * 1000) {
-                        console.log('🔄 Restoring collaborative session:', session.collectionId);
-                        const success = await loadCollaborativeCollection(session.collectionId);
-                        if (success) {
-                            console.log('✅ Collaborative session restored');
-                            return true;
-                        }
+                    console.log('🔄 Restoring collaborative session:', session.collectionId);
+                    const success = await loadCollaborativeCollection(session.collectionId);
+                    if (success) {
+                        console.log('✅ Collaborative session restored');
+                        return true;
                     }
                 } catch (error) {
                     console.error('Error restoring collaborative session:', error);
