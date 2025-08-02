@@ -910,63 +910,32 @@
         let movingAlbumId = null;
         let currentCameraStream = null;
 
-        // Short URL system using compressed encoding - WORKS ACROSS BROWSERS
+        // Simple short URL system using optimized compression
         class ShortURL {
-            static compressData(data) {
-                // Simple compression using base64 and string manipulation
-                const jsonString = JSON.stringify(data);
-                
-                // Replace common words to compress
-                const compressed = jsonString
-                    .replace(/title/g, 't')
-                    .replace(/artist/g, 'a')
-                    .replace(/imageUri/g, 'i')
-                    .replace(/dateAdded/g, 'd')
-                    .replace(/genre/g, 'g')
-                    .replace(/albums/g, 'alb')
-                    .replace(/timestamp/g, 'ts')
-                    .replace(/\":/g, ':')
-                    .replace(/\"/g, '');
-                
-                return btoa(compressed).replace(/[+/=]/g, m => ({'+': '-', '/': '_', '=': ''}[m] || m));
-            }
-            
-            static decompressData(compressed) {
-                try {
-                    // Restore base64 characters
-                    const restored = compressed.replace(/[-_]/g, m => ({'-': '+', '_': '/'}[m]));
-                    const padded = restored + '='.repeat((4 - restored.length % 4) % 4);
-                    
-                    const jsonString = atob(padded)
-                        .replace(/alb/g, 'albums')
-                        .replace(/ts/g, 'timestamp')
-                        .replace(/([a-zA-Z]+):/g, '"$1":')
-                        .replace(/:([\[\{])/g, ':$1')
-                        .replace(/:([^,\]\}]+)/g, ':"$1"')
-                        .replace(/:(\d+)/g, ':$1')
-                        .replace(/:"(\d+)"/g, ':$1')
-                        .replace(/:"true"/g, ':true')
-                        .replace(/:"false"/g, ':false')
-                        .replace(/:"null"/g, ':null');
-                    
-                    return JSON.parse(jsonString);
-                } catch (error) {
-                    console.error('Decompression failed:', error);
-                    return null;
-                }
-            }
-            
             static createShareURL(albums, genre) {
-                const shareData = {
-                    albums: albums,
-                    genre: genre,
-                    ts: Date.now()
-                };
-                
                 try {
-                    const compressed = this.compressData(shareData);
-                    const baseUrl = window.location.origin + window.location.pathname;
+                    // Create ultra-compact representation
+                    const compact = albums.map(album => ({
+                        t: album.title.substring(0, 30), // Keep reasonable length
+                        a: album.artist.substring(0, 25),
+                        y: album.year || '',
+                        i: album.imageUri ? 1 : 0 // Just flag if has image
+                    }));
+                    
+                    const data = { 
+                        albums: compact, 
+                        genre: genre,
+                        ts: Date.now()
+                    };
+                    
+                    // Compress the JSON
+                    const json = JSON.stringify(data);
+                    const compressed = this.compress(json);
+                    
+                    // Get current page URL properly
+                    const baseUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
                     return `${baseUrl}?s=${compressed}`;
+                    
                 } catch (error) {
                     console.error('Failed to create share URL:', error);
                     return null;
@@ -975,9 +944,71 @@
             
             static loadFromShareURL(shareParam) {
                 try {
-                    return this.decompressData(shareParam);
+                    const decompressed = this.decompress(shareParam);
+                    const data = JSON.parse(decompressed);
+                    
+                    return {
+                        albums: data.albums.map(album => ({
+                            id: Date.now() + Math.random(),
+                            title: album.t,
+                            artist: album.a,
+                            year: album.y,
+                            imageUri: album.i ? null : null, // We'll lose images in compression for short URLs
+                            dateAdded: new Date().toISOString()
+                        })),
+                        genre: data.genre,
+                        timestamp: data.ts
+                    };
                 } catch (error) {
-                    console.error('Failed to load from share URL:', error);
+                    console.error('Failed to decompress share data:', error);
+                    return null;
+                }
+            }
+            
+            static compress(str) {
+                // Simple but effective compression
+                let compressed = str;
+                
+                // Replace common patterns
+                compressed = compressed
+                    .replace(/title/g, 't')
+                    .replace(/artist/g, 'a')
+                    .replace(/albums/g, 'al')
+                    .replace(/genre/g, 'g')
+                    .replace(/timestamp/g, 'ts')
+                    .replace(/dateAdded/g, 'd')
+                    .replace(/imageUri/g, 'i')
+                    .replace(/"/g, "'")
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                
+                // Base64 encode and make URL safe
+                const encoded = btoa(unescape(encodeURIComponent(compressed)));
+                return encoded.replace(/[+/=]/g, m => ({'+': '-', '/': '_', '=': ''}[m] || m));
+            }
+            
+            static decompress(compressed) {
+                try {
+                    // Restore base64 characters
+                    const restored = compressed.replace(/[-_]/g, m => ({'-': '+', '_': '/'}[m]));
+                    const padded = restored + '='.repeat((4 - restored.length % 4) % 4);
+                    
+                    // Decode and restore
+                    const decoded = decodeURIComponent(escape(atob(padded)));
+                    
+                    // Restore patterns
+                    return decoded
+                        .replace(/'/g, '"')
+                        .replace(/\bal\b/g, 'albums')
+                        .replace(/\bts\b/g, 'timestamp')
+                        .replace(/\bg\b:/g, 'genre:')
+                        .replace(/\bt\b:/g, 'title:')
+                        .replace(/\ba\b:/g, 'artist:')
+                        .replace(/\bi\b:/g, 'imageUri:')
+                        .replace(/\bd\b:/g, 'dateAdded:');
+                        
+                } catch (error) {
+                    console.error('Decompression failed:', error);
                     return null;
                 }
             }
@@ -1086,14 +1117,15 @@
             });
         }
 
-        // Load collection from URL parameter (handles compressed share URLs)
+        // Load collection from URL parameter (handles compressed URLs)
         function loadFromURL() {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 
-                // Check for compressed share URL
+                // Check for share parameter
                 const shareParam = urlParams.get('s');
                 if (shareParam) {
+                    console.log('Loading shared collection from URL parameter:', shareParam.substring(0, 20) + '...');
                     const shareData = ShortURL.loadFromShareURL(shareParam);
                     if (shareData && shareData.albums) {
                         loadSharedCollection(shareData.albums, shareData.genre);
@@ -1101,7 +1133,7 @@
                         window.history.replaceState({}, document.title, window.location.pathname);
                         return;
                     } else {
-                        showNotification('⚠️ Invalid or corrupted share link');
+                        showNotification('⚠️ Could not load shared collection - link may be corrupted');
                         window.history.replaceState({}, document.title, window.location.pathname);
                         return;
                     }
@@ -1119,7 +1151,7 @@
                 }
             } catch (error) {
                 console.error('Error loading collection from URL:', error);
-                showNotification('⚠️ Failed to load shared collection - link may be corrupted');
+                showNotification('⚠️ Failed to load shared collection');
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
@@ -1164,7 +1196,7 @@
             }, 4000);
         }
 
-        // Create compressed share URL that works across browsers
+        // Create short share URL using optimized compression
         function createShortShareURL() {
             const currentAlbums = getCurrentAlbums();
             if (currentAlbums.length === 0) {
@@ -1175,13 +1207,14 @@
             try {
                 const shareURL = ShortURL.createShareURL(currentAlbums, state.currentGenre);
                 if (shareURL) {
+                    console.log(`✅ Created short share URL (${shareURL.length} chars):`, shareURL);
                     return shareURL;
                 } else {
-                    showNotification('❌ Failed to create share link. Collection might be too large.');
+                    showNotification('❌ Failed to create share link. Try again.');
                     return null;
                 }
             } catch (error) {
-                console.error('Error creating compressed share URL:', error);
+                console.error('Error creating share URL:', error);
                 showNotification('❌ Failed to create share link. Try again.');
                 return null;
             }
@@ -1979,16 +2012,16 @@
                 document.getElementById('search-modal').style.display = 'flex';
             });
 
-            // Share collection button with SHORT URL generation
-            document.getElementById('share-collection-btn').addEventListener('click', () => {
+            // Share collection button with TRULY SHORT URLs
+            document.getElementById('share-collection-btn').addEventListener('click', async () => {
                 if (state.currentGenre === 'all') {
                     alert('Please select a specific genre to share. You cannot share the "All Albums" view.');
                     return;
                 }
                 
-                const shortURL = createShortShareURL();
+                const shortURL = await createShortShareURL();
                 if (shortURL) {
-                    console.log(`Created short share URL: ${shortURL}`);
+                    console.log(`Created truly short share URL: ${shortURL}`);
                     showShortShareLink(shortURL);
                     
                     // Store for copy button
