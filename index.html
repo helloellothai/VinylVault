@@ -810,18 +810,18 @@
 
             <div style="text-align: center;">
                 <p style="margin-bottom: 20px; color: #666;">
-                    Share your collection with this permanent link!
+                    Share your collection with this link - works everywhere!
                 </p>
 
                 <div id="short-url-display" class="short-url-display">
                     <div style="font-size: 16px; color: #666; margin-bottom: 10px;">
-                        🔗 Permanent Share Link
+                        🔗 Universal Share Link
                     </div>
                     <div id="short-url-text" class="short-url-text">
                         Generating link...
                     </div>
                     <div style="font-size: 14px; color: #888; margin-top: 10px;">
-                        Permanent link - never expires!
+                        Works on any device, any browser - never expires!
                     </div>
                 </div>
 
@@ -910,64 +910,75 @@
         let movingAlbumId = null;
         let currentCameraStream = null;
 
-        // Short URL system using simple encoding - PERMANENT STORAGE
+        // Short URL system using compressed encoding - WORKS ACROSS BROWSERS
         class ShortURL {
-            static generateShareId() {
-                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                let result = '';
-                for (let i = 0; i < 8; i++) {
-                    result += chars.charAt(Math.floor(Math.random() * chars.length));
-                }
-                return result;
+            static compressData(data) {
+                // Simple compression using base64 and string manipulation
+                const jsonString = JSON.stringify(data);
+                
+                // Replace common words to compress
+                const compressed = jsonString
+                    .replace(/title/g, 't')
+                    .replace(/artist/g, 'a')
+                    .replace(/imageUri/g, 'i')
+                    .replace(/dateAdded/g, 'd')
+                    .replace(/genre/g, 'g')
+                    .replace(/albums/g, 'alb')
+                    .replace(/timestamp/g, 'ts')
+                    .replace(/\":/g, ':')
+                    .replace(/\"/g, '');
+                
+                return btoa(compressed).replace(/[+/=]/g, m => ({'+': '-', '/': '_', '=': ''}[m] || m));
             }
-
-            static saveCollection(albums, genre) {
-                const shareId = this.generateShareId();
+            
+            static decompressData(compressed) {
+                try {
+                    // Restore base64 characters
+                    const restored = compressed.replace(/[-_]/g, m => ({'-': '+', '_': '/'}[m]));
+                    const padded = restored + '='.repeat((4 - restored.length % 4) % 4);
+                    
+                    const jsonString = atob(padded)
+                        .replace(/alb/g, 'albums')
+                        .replace(/ts/g, 'timestamp')
+                        .replace(/([a-zA-Z]+):/g, '"$1":')
+                        .replace(/:([\[\{])/g, ':$1')
+                        .replace(/:([^,\]\}]+)/g, ':"$1"')
+                        .replace(/:(\d+)/g, ':$1')
+                        .replace(/:"(\d+)"/g, ':$1')
+                        .replace(/:"true"/g, ':true')
+                        .replace(/:"false"/g, ':false')
+                        .replace(/:"null"/g, ':null');
+                    
+                    return JSON.parse(jsonString);
+                } catch (error) {
+                    console.error('Decompression failed:', error);
+                    return null;
+                }
+            }
+            
+            static createShareURL(albums, genre) {
                 const shareData = {
                     albums: albums,
                     genre: genre,
-                    timestamp: Date.now(),
-                    owner: 'vinyl-user-' + Date.now()
+                    ts: Date.now()
                 };
                 
                 try {
-                    // Store permanently in localStorage - NO EXPIRY
-                    localStorage.setItem(`vinyl-share-${shareId}`, JSON.stringify(shareData));
-                    return shareId;
+                    const compressed = this.compressData(shareData);
+                    const baseUrl = window.location.origin + window.location.pathname;
+                    return `${baseUrl}?s=${compressed}`;
                 } catch (error) {
-                    console.error('Failed to save share data:', error);
+                    console.error('Failed to create share URL:', error);
                     return null;
                 }
             }
-
-            static loadCollection(shareId) {
+            
+            static loadFromShareURL(shareParam) {
                 try {
-                    const stored = localStorage.getItem(`vinyl-share-${shareId}`);
-                    if (!stored) return null;
-                    
-                    // Return data directly - NO EXPIRY CHECK
-                    return JSON.parse(stored);
+                    return this.decompressData(shareParam);
                 } catch (error) {
-                    console.error('Failed to load share data:', error);
+                    console.error('Failed to load from share URL:', error);
                     return null;
-                }
-            }
-
-            static cleanupCorrupted() {
-                // Only clean up corrupted entries, not expired ones
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith('vinyl-share-')) {
-                        try {
-                            const stored = localStorage.getItem(key);
-                            if (stored) {
-                                JSON.parse(stored); // Test if valid JSON
-                            }
-                        } catch (error) {
-                            // Remove only corrupted entries
-                            localStorage.removeItem(key);
-                        }
-                    }
                 }
             }
         }
@@ -992,9 +1003,6 @@
         // Load albums from storage with genre support
         function loadAlbums() {
             try {
-                // Clean up only corrupted shares on load (not expired ones)
-                ShortURL.cleanupCorrupted();
-                
                 // Load main albums (backwards compatibility)
                 const saved = localStorage.getItem('vinylCollection');
                 if (saved) {
@@ -1078,28 +1086,28 @@
             });
         }
 
-        // Load collection from URL parameter (handles both short and long URLs)
+        // Load collection from URL parameter (handles compressed share URLs)
         function loadFromURL() {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 
-                // Check for short URL first
-                const shareId = urlParams.get('s');
-                if (shareId) {
-                    const shareData = ShortURL.loadCollection(shareId);
-                    if (shareData) {
+                // Check for compressed share URL
+                const shareParam = urlParams.get('s');
+                if (shareParam) {
+                    const shareData = ShortURL.loadFromShareURL(shareParam);
+                    if (shareData && shareData.albums) {
                         loadSharedCollection(shareData.albums, shareData.genre);
                         // Clean URL after loading
                         window.history.replaceState({}, document.title, window.location.pathname);
                         return;
                     } else {
-                        showNotification('⚠️ Shared collection not found');
+                        showNotification('⚠️ Invalid or corrupted share link');
                         window.history.replaceState({}, document.title, window.location.pathname);
                         return;
                     }
                 }
                 
-                // Fallback to old long URL format
+                // Fallback to old long URL format for backward compatibility
                 const collectionData = urlParams.get('collection');
                 const genre = urlParams.get('genre') || 'main';
                 
@@ -1111,7 +1119,7 @@
                 }
             } catch (error) {
                 console.error('Error loading collection from URL:', error);
-                showNotification('⚠️ Failed to load shared collection');
+                showNotification('⚠️ Failed to load shared collection - link may be corrupted');
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
@@ -1156,7 +1164,7 @@
             }, 4000);
         }
 
-        // Create short share URL
+        // Create compressed share URL that works across browsers
         function createShortShareURL() {
             const currentAlbums = getCurrentAlbums();
             if (currentAlbums.length === 0) {
@@ -1165,17 +1173,15 @@
             }
             
             try {
-                const shareId = ShortURL.saveCollection(currentAlbums, state.currentGenre);
-                if (shareId) {
-                    const baseUrl = window.location.origin + window.location.pathname;
-                    const shortURL = `${baseUrl}?s=${shareId}`;
-                    return shortURL;
+                const shareURL = ShortURL.createShareURL(currentAlbums, state.currentGenre);
+                if (shareURL) {
+                    return shareURL;
                 } else {
-                    showNotification('❌ Failed to create share link. Try again.');
+                    showNotification('❌ Failed to create share link. Collection might be too large.');
                     return null;
                 }
             } catch (error) {
-                console.error('Error creating short share URL:', error);
+                console.error('Error creating compressed share URL:', error);
                 showNotification('❌ Failed to create share link. Try again.');
                 return null;
             }
