@@ -910,31 +910,32 @@
         let movingAlbumId = null;
         let currentCameraStream = null;
 
-        // Simple short URL system using optimized compression
+        // Simple and reliable short URL system
         class ShortURL {
             static createShareURL(albums, genre) {
                 try {
-                    // Create ultra-compact representation
-                    const compact = albums.map(album => ({
-                        t: album.title.substring(0, 30), // Keep reasonable length
-                        a: album.artist.substring(0, 25),
-                        y: album.year || '',
-                        i: album.imageUri ? 1 : 0 // Just flag if has image
-                    }));
-                    
-                    const data = { 
-                        albums: compact, 
+                    // Create simple compact data structure
+                    const shareData = {
+                        albums: albums.map(album => ({
+                            title: album.title,
+                            artist: album.artist,
+                            year: album.year || '',
+                            imageUri: album.imageUri || ''
+                        })),
                         genre: genre,
-                        ts: Date.now()
+                        timestamp: Date.now()
                     };
                     
-                    // Compress the JSON
-                    const json = JSON.stringify(data);
-                    const compressed = this.compress(json);
+                    // Simple base64 encoding
+                    const jsonString = JSON.stringify(shareData);
+                    const encoded = btoa(unescape(encodeURIComponent(jsonString)));
+                    
+                    // Make URL-safe
+                    const urlSafe = encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
                     
                     // Get current page URL properly
-                    const baseUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
-                    return `${baseUrl}?s=${compressed}`;
+                    const baseUrl = window.location.origin + window.location.pathname;
+                    return `${baseUrl}?s=${urlSafe}`;
                     
                 } catch (error) {
                     console.error('Failed to create share URL:', error);
@@ -944,71 +945,41 @@
             
             static loadFromShareURL(shareParam) {
                 try {
-                    const decompressed = this.decompress(shareParam);
-                    const data = JSON.parse(decompressed);
+                    console.log('Attempting to decode share parameter:', shareParam.substring(0, 50) + '...');
                     
+                    // Restore base64 format
+                    let restored = shareParam.replace(/-/g, '+').replace(/_/g, '/');
+                    
+                    // Add padding if needed
+                    while (restored.length % 4) {
+                        restored += '=';
+                    }
+                    
+                    // Decode
+                    const decoded = decodeURIComponent(escape(atob(restored)));
+                    console.log('Decoded JSON string:', decoded.substring(0, 100) + '...');
+                    
+                    // Parse JSON
+                    const shareData = JSON.parse(decoded);
+                    console.log('Parsed share data:', shareData);
+                    
+                    // Convert to expected format
                     return {
-                        albums: data.albums.map(album => ({
+                        albums: shareData.albums.map(album => ({
                             id: Date.now() + Math.random(),
-                            title: album.t,
-                            artist: album.a,
-                            year: album.y,
-                            imageUri: album.i ? null : null, // We'll lose images in compression for short URLs
+                            title: album.title,
+                            artist: album.artist,
+                            year: album.year,
+                            imageUri: album.imageUri,
                             dateAdded: new Date().toISOString()
                         })),
-                        genre: data.genre,
-                        timestamp: data.ts
+                        genre: shareData.genre,
+                        timestamp: shareData.timestamp
                     };
-                } catch (error) {
-                    console.error('Failed to decompress share data:', error);
-                    return null;
-                }
-            }
-            
-            static compress(str) {
-                // Simple but effective compression
-                let compressed = str;
-                
-                // Replace common patterns
-                compressed = compressed
-                    .replace(/title/g, 't')
-                    .replace(/artist/g, 'a')
-                    .replace(/albums/g, 'al')
-                    .replace(/genre/g, 'g')
-                    .replace(/timestamp/g, 'ts')
-                    .replace(/dateAdded/g, 'd')
-                    .replace(/imageUri/g, 'i')
-                    .replace(/"/g, "'")
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                
-                // Base64 encode and make URL safe
-                const encoded = btoa(unescape(encodeURIComponent(compressed)));
-                return encoded.replace(/[+/=]/g, m => ({'+': '-', '/': '_', '=': ''}[m] || m));
-            }
-            
-            static decompress(compressed) {
-                try {
-                    // Restore base64 characters
-                    const restored = compressed.replace(/[-_]/g, m => ({'-': '+', '_': '/'}[m]));
-                    const padded = restored + '='.repeat((4 - restored.length % 4) % 4);
                     
-                    // Decode and restore
-                    const decoded = decodeURIComponent(escape(atob(padded)));
-                    
-                    // Restore patterns
-                    return decoded
-                        .replace(/'/g, '"')
-                        .replace(/\bal\b/g, 'albums')
-                        .replace(/\bts\b/g, 'timestamp')
-                        .replace(/\bg\b:/g, 'genre:')
-                        .replace(/\bt\b:/g, 'title:')
-                        .replace(/\ba\b:/g, 'artist:')
-                        .replace(/\bi\b:/g, 'imageUri:')
-                        .replace(/\bd\b:/g, 'dateAdded:');
-                        
                 } catch (error) {
-                    console.error('Decompression failed:', error);
+                    console.error('Failed to decode share data:', error);
+                    console.error('Share parameter was:', shareParam);
                     return null;
                 }
             }
@@ -2012,16 +1983,16 @@
                 document.getElementById('search-modal').style.display = 'flex';
             });
 
-            // Share collection button with TRULY SHORT URLs
-            document.getElementById('share-collection-btn').addEventListener('click', async () => {
+            // Share collection button with RELIABLE SHORT URLs
+            document.getElementById('share-collection-btn').addEventListener('click', () => {
                 if (state.currentGenre === 'all') {
                     alert('Please select a specific genre to share. You cannot share the "All Albums" view.');
                     return;
                 }
                 
-                const shortURL = await createShortShareURL();
+                const shortURL = createShortShareURL();
                 if (shortURL) {
-                    console.log(`Created truly short share URL: ${shortURL}`);
+                    console.log(`Created reliable short share URL: ${shortURL}`);
                     showShortShareLink(shortURL);
                     
                     // Store for copy button
