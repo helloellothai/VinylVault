@@ -216,6 +216,17 @@
             font-size: 0.9rem;
         }
         
+        .album-genre {
+            background: #e9ecef;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-top: 8px;
+            display: inline-block;
+        }
+        
         .delete-button {
             position: absolute;
             top: 10px;
@@ -236,6 +247,21 @@
             top: 10px;
             right: 40px;
             background-color: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            touch-action: manipulation;
+        }
+        
+        .move-button {
+            position: absolute;
+            top: 10px;
+            right: 70px;
+            background-color: #FF9500;
             color: white;
             border: none;
             border-radius: 50%;
@@ -539,6 +565,77 @@
             border-bottom: 4px solid #00FF00;
             border-right: 4px solid #00FF00;
         }
+
+        .collaborative-indicator {
+            background: linear-gradient(135deg, #34C759, #007AFF);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #333;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+
+        /* Genre picker modal styles */
+        .genre-picker {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .genre-option {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .genre-option:hover {
+            background: #e9ecef;
+            border-color: #007AFF;
+            transform: translateY(-2px);
+        }
+
+        .genre-option.selected {
+            background: #007AFF;
+            color: white;
+            border-color: #007AFF;
+        }
+
+        .genre-emoji {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .genre-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
         
         @media (max-width: 768px) {
             .container {
@@ -576,6 +673,11 @@
                 padding: 20px;
                 width: 95%;
             }
+
+            .genre-picker {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 10px;
+            }
         }
     </style>
 </head>
@@ -590,6 +692,7 @@
         <!-- Genre Selection -->
         <div class="button-row" style="margin-bottom: 10px;">
             <select id="genre-selector" style="padding: 12px; border: 2px solid #007AFF; border-radius: 8px; font-size: 16px; font-weight: bold; color: #007AFF; background: white; flex: 1;">
+                <option value="all">📚 Full Collection (All Albums)</option>
                 <option value="main">🎵 Main Collection</option>
                 <option value="rock">🎸 Rock Collection</option>
                 <option value="jazz">🎷 Jazz Collection</option>
@@ -636,7 +739,7 @@
         </div>
 
         <!-- Add Manual Entry Section -->
-        <div class="add-section">
+        <div class="add-section" id="add-section">
             <h2 class="section-title">Add Album Manually</h2>
             
             <input
@@ -710,7 +813,8 @@
 
             <div style="text-align: center;">
                 <p style="margin-bottom: 20px; color: #666;">
-                    Share your collection with this short link!
+                    Share your collection with this short link!<br>
+                    <strong>✨ Now with REAL collaboration - others can add albums too!</strong>
                 </p>
 
                 <div id="qr-code-display" style="
@@ -760,6 +864,33 @@
         </div>
     </div>
 
+    <!-- Genre Picker Modal -->
+    <div class="modal" id="genre-picker-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">📁 Move Album to Genre</h2>
+                <button class="close-button" id="close-genre-picker-btn">✕</button>
+            </div>
+
+            <p style="margin-bottom: 20px; color: #666;">
+                Select the genre where you want to move "<span id="moving-album-title"></span>":
+            </p>
+
+            <div class="genre-picker" id="genre-picker">
+                <!-- Genre options will be populated here -->
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="primary-button" id="confirm-move-btn" style="flex: 1;">
+                    📁 Move Album
+                </button>
+                <button class="secondary-button" id="cancel-move-btn" style="flex: 1;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Online Search Modal -->
     <div class="modal" id="search-modal" style="display: none;">
         <div class="modal-content">
@@ -783,22 +914,226 @@
         </div>
     </div>
 
+    <!-- Debug Info -->
+    <div class="debug-info" id="debug-info">
+        Status: Initializing...
+    </div>
+
+    <!-- Supabase JavaScript SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
-        // App state with genre support
+        // Supabase configuration
+        const SUPABASE_URL = 'https://ydsgjlsbbwsxzjewktbk.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlkc2dqbHNiYndzeHpqZXdrdGJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMTc1OTEsImV4cCI6MjA2OTU5MzU5MX0.WfvHuhKdieJbLocKbv2oosBKzKl1dsZu50mA9OUHRtA';
+        
+        // Initialize Supabase client
+        let supabaseClient = null;
+        
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Supabase client initialized');
+            updateDebugInfo('Supabase connected');
+        } catch (error) {
+            console.error('❌ Supabase initialization failed:', error);
+            updateDebugInfo('Supabase failed');
+        }
+
+        // App state with collaborative support
         let state = {
-            albums: {},  // Now an object: {main: [], rock: [], jazz: []}
+            albums: {},  // Local albums: {main: [], rock: [], jazz: []}
             currentGenre: 'main',
             viewMode: 'grid',
             showCovers: true,
             currentImageUri: null,
-            customGenres: []
+            customGenres: [],
+            isCollaborative: false,
+            sharedCollectionId: null
         };
 
         let editingAlbumId = null;
         let currentCameraStream = null;
+        let movingAlbumId = null;
+        let selectedTargetGenre = null;
 
-        // Load albums from localStorage with genre support
-        function loadAlbums() {
+        // Update debug info
+        function updateDebugInfo(status) {
+            const debugElement = document.getElementById('debug-info');
+            if (debugElement) {
+                debugElement.textContent = `Status: ${status}`;
+            }
+        }
+
+        // Test Supabase connection
+        async function testSupabaseConnection() {
+            if (!supabaseClient) {
+                console.log('❌ Supabase client not initialized');
+                return false;
+            }
+            
+            try {
+                // Simple test query
+                const { data, error } = await supabaseClient
+                    .from('collections')
+                    .select('id')
+                    .limit(1);
+
+                if (error) {
+                    console.log('⚠️ Supabase connection test failed:', error.message);
+                    updateDebugInfo('DB connection failed');
+                    return false;
+                }
+                
+                console.log('✅ Supabase connection test passed');
+                updateDebugInfo('DB connected');
+                return true;
+            } catch (error) {
+                console.error('❌ Supabase test error:', error);
+                updateDebugInfo('DB test failed');
+                return false;
+            }
+        }
+
+        // Load collaborative collection from Supabase
+        async function loadCollaborativeCollection(collectionId) {
+            if (!supabaseClient) {
+                console.log('❌ Cannot load collaborative collection - Supabase not available');
+                return false;
+            }
+
+            try {
+                console.log('🔄 Loading collaborative collection:', collectionId);
+                
+                // Load collection metadata
+                const { data: collection, error: collectionError } = await supabaseClient
+                    .from('collections')
+                    .select('*')
+                    .eq('id', collectionId)
+                    .single();
+
+                if (collectionError) {
+                    console.error('❌ Collection not found:', collectionError);
+                    showNotification('❌ Shared collection not found');
+                    return false;
+                }
+
+                console.log('✅ Collection found:', collection);
+
+                // Load albums in this collection
+                const { data: albums, error: albumsError } = await supabaseClient
+                    .from('albums')
+                    .select('*')
+                    .eq('collection_id', collectionId)
+                    .order('created_at', { ascending: true });
+
+                if (albumsError) {
+                    console.error('❌ Error loading albums:', albumsError);
+                    return false;
+                }
+
+                console.log(`✅ Loaded ${albums.length} albums from collaborative collection`);
+
+                // Set up collaborative state
+                state.isCollaborative = true;
+                state.sharedCollectionId = collectionId;
+                state.currentGenre = collection.genre || 'main';
+
+                // Initialize local albums if needed
+                if (!state.albums[state.currentGenre]) {
+                    state.albums[state.currentGenre] = [];
+                }
+
+                // Replace local albums with collaborative ones
+                state.albums[state.currentGenre] = albums.map(album => ({
+                    id: album.id,
+                    title: album.title,
+                    artist: album.artist,
+                    year: album.year,
+                    imageUri: album.image_uri,
+                    dateAdded: album.created_at,
+                    isCollaborative: true
+                }));
+
+                // Update UI
+                document.getElementById('genre-selector').value = state.currentGenre;
+                updateCollectionHeader();
+                
+                showNotification(`🤝 Loaded collaborative collection with ${albums.length} albums!`);
+                updateDebugInfo(`Collab: ${albums.length} albums`);
+                
+                return true;
+
+            } catch (error) {
+                console.error('❌ Error loading collaborative collection:', error);
+                showNotification('❌ Failed to load shared collection');
+                return false;
+            }
+        }
+
+        // Update collection header to show collaborative status
+        function updateCollectionHeader() {
+            const countElement = document.getElementById('collection-count');
+            const genreDisplayName = document.getElementById('genre-selector').selectedOptions[0].textContent;
+            
+            let albumCount = 0;
+            if (state.currentGenre === 'all') {
+                albumCount = getAllAlbums().length;
+            } else {
+                albumCount = getCurrentAlbums().length;
+            }
+            
+            let countText = `${albumCount} albums in ${genreDisplayName}`;
+            
+            if (state.isCollaborative) {
+                countText += ' <span class="collaborative-indicator">🤝 COLLABORATIVE</span>';
+            }
+            
+            countElement.innerHTML = countText;
+        }
+
+        // Check for shared collection in URL
+        async function checkForSharedCollection() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareId = urlParams.get('share');
+            
+            if (shareId) {
+                console.log('🔗 Found share ID in URL:', shareId);
+                const success = await loadCollaborativeCollection(shareId);
+                if (success) {
+                    // Store collaborative session info (don't clean URL immediately)
+                    sessionStorage.setItem('vinylCollaborativeSession', JSON.stringify({
+                        collectionId: shareId,
+                        genre: state.currentGenre,
+                        timestamp: Date.now()
+                    }));
+                    console.log('💾 Stored collaborative session');
+                }
+                return success;
+            }
+            
+            // Check for stored collaborative session
+            const storedSession = sessionStorage.getItem('vinylCollaborativeSession');
+            if (storedSession) {
+                try {
+                    const session = JSON.parse(storedSession);
+                    console.log('🔄 Restoring collaborative session:', session.collectionId);
+                    const success = await loadCollaborativeCollection(session.collectionId);
+                    if (success) {
+                        console.log('✅ Collaborative session restored');
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('Error restoring collaborative session:', error);
+                }
+                // Clear invalid session
+                sessionStorage.removeItem('vinylCollaborativeSession');
+            }
+            
+            return false;
+        }
+
+        // Load albums from localStorage (backwards compatibility)
+        function loadLocalAlbums() {
             try {
                 // Load main albums (backwards compatibility)
                 const saved = localStorage.getItem('vinylCollection');
@@ -828,38 +1163,205 @@
                         state.albums[genre] = [];
                     }
                 });
-                
-                // Check for shared collection in URL
-                loadFromURL();
+
+                console.log('✅ Local albums loaded');
+                updateDebugInfo('Local albums loaded');
+
             } catch (error) {
-                console.error('Error loading albums:', error);
+                console.error('❌ Error loading local albums:', error);
                 state.albums = {main: []};
             }
         }
 
-        // Save albums to localStorage with genre support
-        function saveAlbums() {
+        // Save local albums to localStorage
+        function saveLocalAlbums() {
             try {
                 localStorage.setItem('vinylGenreCollections', JSON.stringify(state.albums));
                 if (state.customGenres.length > 0) {
                     localStorage.setItem('vinylCustomGenres', JSON.stringify(state.customGenres));
                 }
             } catch (error) {
-                console.error('Error saving albums:', error);
+                console.error('❌ Error saving local albums:', error);
             }
+        }
+
+        // Add album to Supabase (collaborative collections)
+        async function addAlbumToSupabase(album) {
+            if (!state.isCollaborative || !state.sharedCollectionId || !supabaseClient) {
+                return false;
+            }
+            
+            try {
+                console.log('🔄 Adding album to Supabase:', album.title);
+                
+                const { data, error } = await supabaseClient
+                    .from('albums')
+                    .insert([{
+                        collection_id: state.sharedCollectionId,
+                        title: album.title,
+                        artist: album.artist,
+                        year: album.year || null,
+                        image_uri: album.imageUri || null
+                    }])
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('❌ Error adding album to Supabase:', error);
+                    return false;
+                }
+
+                console.log('✅ Album added to Supabase:', data.id);
+                
+                // Update local album with Supabase ID
+                album.id = data.id;
+                album.isCollaborative = true;
+                
+                return true;
+            } catch (error) {
+                console.error('❌ Error adding album to collaborative collection:', error);
+                return false;
+            }
+        }
+
+        // Delete album from Supabase
+        async function deleteAlbumFromSupabase(albumId) {
+            if (!state.isCollaborative || !supabaseClient) return true;
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('albums')
+                    .delete()
+                    .eq('id', albumId);
+
+                if (error) {
+                    console.error('❌ Error deleting album from Supabase:', error);
+                    return false;
+                }
+                
+                console.log('✅ Album deleted from Supabase');
+                return true;
+            } catch (error) {
+                console.error('❌ Error deleting collaborative album:', error);
+                return false;
+            }
+        }
+
+        // Create new collaborative collection
+        async function createCollaborativeCollection(albums, genre) {
+            if (!supabaseClient) {
+                throw new Error('Supabase not available');
+            }
+
+            try {
+                console.log('🔄 Creating collaborative collection...');
+                
+                // Create collection
+                const { data: collection, error: collectionError } = await supabaseClient
+                    .from('collections')
+                    .insert([{
+                        name: `${genre.charAt(0).toUpperCase() + genre.slice(1)} Collection`,
+                        genre: genre,
+                        is_public: true
+                    }])
+                    .select()
+                    .single();
+
+                if (collectionError) {
+                    throw collectionError;
+                }
+
+                console.log('✅ Collection created:', collection.id);
+
+                // Add albums to collection
+                if (albums.length > 0) {
+                    const albumInserts = albums.map(album => ({
+                        collection_id: collection.id,
+                        title: album.title,
+                        artist: album.artist,
+                        year: album.year || null,
+                        image_uri: album.imageUri || null
+                    }));
+
+                    const { error: albumsError } = await supabaseClient
+                        .from('albums')
+                        .insert(albumInserts);
+
+                    if (albumsError) {
+                        throw albumsError;
+                    }
+
+                    console.log(`✅ Added ${albums.length} albums to collection`);
+                }
+
+                return collection.id;
+
+            } catch (error) {
+                console.error('❌ Error creating collaborative collection:', error);
+                throw error;
+            }
+        }
+
+        // Get all albums across all genres
+        function getAllAlbums() {
+            const allAlbums = [];
+            Object.keys(state.albums).forEach(genre => {
+                if (genre !== 'all' && state.albums[genre]) {
+                    state.albums[genre].forEach(album => {
+                        allAlbums.push({
+                            ...album,
+                            genre: genre
+                        });
+                    });
+                }
+            });
+            return allAlbums;
         }
 
         // Get current genre albums
         function getCurrentAlbums() {
+            if (state.currentGenre === 'all') {
+                return getAllAlbums();
+            }
             return state.albums[state.currentGenre] || [];
         }
 
         // Add album to current genre
         function addAlbumToCurrentGenre(album) {
-            if (!state.albums[state.currentGenre]) {
-                state.albums[state.currentGenre] = [];
+            if (state.currentGenre === 'all') {
+                // Default to main collection when in "all" view
+                if (!state.albums.main) {
+                    state.albums.main = [];
+                }
+                state.albums.main.push(album);
+            } else {
+                if (!state.albums[state.currentGenre]) {
+                    state.albums[state.currentGenre] = [];
+                }
+                state.albums[state.currentGenre].push(album);
             }
-            state.albums[state.currentGenre].push(album);
+        }
+
+        // Get genre display info
+        function getGenreDisplayInfo() {
+            const genreNames = {
+                'main': { emoji: '🎵', name: 'Main Collection' },
+                'rock': { emoji: '🎸', name: 'Rock Collection' },
+                'jazz': { emoji: '🎷', name: 'Jazz Collection' },
+                'pop': { emoji: '🎤', name: 'Pop Collection' },
+                'hip-hop': { emoji: '🎤', name: 'Hip-Hop Collection' },
+                'country': { emoji: '🤠', name: 'Country Collection' },
+                'classical': { emoji: '🎼', name: 'Classical Collection' },
+                'electronic': { emoji: '🎛️', name: 'Electronic Collection' },
+                'christian': { emoji: '✝️', name: 'Christian Collection' }
+            };
+
+            // Add custom genres
+            state.customGenres.forEach(g => {
+                genreNames[g.id] = { emoji: g.emoji, name: g.name };
+            });
+
+            return genreNames;
         }
 
         // Update genre selector with custom genres
@@ -880,94 +1382,11 @@
             });
         }
 
-        // Load collection from URL parameter (short link system)
-        function loadFromURL() {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                
-                // Check for short share link
-                const shareId = urlParams.get('share');
-                if (shareId) {
-                    const shareData = localStorage.getItem(`vinylShare_${shareId}`);
-                    if (shareData) {
-                        const { albums, genre } = JSON.parse(shareData);
-                        
-                        // Ensure target genre exists
-                        if (!state.albums[genre]) {
-                            state.albums[genre] = [];
-                        }
-                        
-                        // Merge with existing collection (avoid duplicates)
-                        const existingTitles = new Set(state.albums[genre].map(album => `${album.title}-${album.artist}`.toLowerCase()));
-                        const newAlbums = albums.filter(album => 
-                            !existingTitles.has(`${album.title}-${album.artist}`.toLowerCase())
-                        );
-                        
-                        if (newAlbums.length > 0) {
-                            state.albums[genre].push(...newAlbums);
-                            saveAlbums();
-                            
-                            // Switch to the shared genre
-                            state.currentGenre = genre;
-                            document.getElementById('genre-selector').value = genre;
-                            
-                            console.log(`Added ${newAlbums.length} albums to ${genre} collection`);
-                            showNotification(`✅ Added ${newAlbums.length} albums to ${genre.charAt(0).toUpperCase() + genre.slice(1)} collection!`);
-                        } else {
-                            showNotification(`📚 All albums from shared ${genre} collection already in your library!`);
-                        }
-                        
-                        // Clean URL after loading
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        return;
-                    }
-                }
-                
-                // Legacy long URL support
-                const collectionData = urlParams.get('collection');
-                const genre = urlParams.get('genre') || 'main';
-                
-                if (collectionData) {
-                    const decodedData = JSON.parse(atob(collectionData));
-                    
-                    // Ensure target genre exists
-                    if (!state.albums[genre]) {
-                        state.albums[genre] = [];
-                    }
-                    
-                    // Merge with existing collection (avoid duplicates)
-                    const existingTitles = new Set(state.albums[genre].map(album => `${album.title}-${album.artist}`.toLowerCase()));
-                    const newAlbums = decodedData.filter(album => 
-                        !existingTitles.has(`${album.title}-${album.artist}`.toLowerCase())
-                    );
-                    
-                    if (newAlbums.length > 0) {
-                        state.albums[genre].push(...newAlbums);
-                        saveAlbums();
-                        
-                        // Switch to the shared genre
-                        state.currentGenre = genre;
-                        document.getElementById('genre-selector').value = genre;
-                        
-                        console.log(`Added ${newAlbums.length} albums to ${genre} collection`);
-                        showNotification(`✅ Added ${newAlbums.length} albums to ${genre.charAt(0).toUpperCase() + genre.slice(1)} collection!`);
-                    } else {
-                        showNotification(`📚 All albums from shared ${genre} collection already in your library!`);
-                    }
-                    
-                    // Clean URL after loading
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }
-            } catch (error) {
-                console.error('Error loading collection from URL:', error);
-            }
-        }
-
         // Show notification
         function showNotification(message) {
             const notification = document.createElement('div');
             notification.className = 'notification';
-            notification.textContent = message;
+            notification.innerHTML = message;
             document.body.appendChild(notification);
             
             setTimeout(() => {
@@ -975,28 +1394,24 @@
             }, 4000);
         }
 
-        // Generate short share ID
-        function generateShareId() {
-            return Math.random().toString(36).substring(2, 8) + Date.now().toString(36);
-        }
-
-        // Show share link without QR code
+        // Show share link
         function showShareLink(url) {
             const qrContainer = document.getElementById('qr-code-display');
             qrContainer.innerHTML = `
                 <div style="padding: 20px; text-align: center;">
-                    <p style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">📱 Share Link</p>
+                    <p style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">🤝 Collaborative Collection Link</p>
                     <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 14px; margin-bottom: 15px;">
                         ${url}
                     </div>
                     <p style="color: #666; font-size: 14px;">
-                        Send this link to share your ${state.currentGenre} collection!
+                        Anyone with this link can view AND add albums to your ${state.currentGenre} collection!<br>
+                        <strong>✨ Real collaboration enabled!</strong>
                     </p>
                 </div>
             `;
         }
 
-        // Copy to clipboard with fallback
+        // Copy to clipboard
         async function copyToClipboard(text) {
             try {
                 await navigator.clipboard.writeText(text);
@@ -1092,7 +1507,6 @@
                     }
                     
                     showNotification(`🎯 Found: "${topResult.title}" by ${topResult.artist}!`);
-                    console.log('✅ Auto-filled album info:', topResult);
                 } else {
                     titleInput.placeholder = 'Album Title';
                     artistInput.placeholder = 'Artist';
@@ -1106,9 +1520,8 @@
             }
         }
 
-        // Enhanced camera functionality (mobile-friendly)
+        // Enhanced camera functionality
         async function takePhoto() {
-            // Check if we're on mobile
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             
             try {
@@ -1126,17 +1539,15 @@
                 video.srcObject = stream;
                 document.getElementById('camera-preview').style.display = 'block';
                 
-                // Store the stream for cleanup
                 currentCameraStream = stream;
                 
             } catch (error) {
                 console.error('Camera access failed:', error);
-                // Always fallback to file input on mobile
                 takeFallbackPhoto();
             }
         }
 
-        // Fallback photo method (file input)
+        // Fallback photo method
         function takeFallbackPhoto() {
             const input = document.createElement('input');
             input.type = 'file';
@@ -1157,7 +1568,7 @@
             input.click();
         }
 
-        // Capture photo from camera with PRECISE focus frame cropping
+        // Capture photo from camera
         async function capturePhoto() {
             const video = document.getElementById('camera-video');
             const canvas = document.getElementById('capture-canvas');
@@ -1175,8 +1586,8 @@
             // Draw full video
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Calculate EXACT center crop (200x200 focus frame)
-            const cropSize = Math.min(canvas.width, canvas.height) * 0.5; // 50% of smallest dimension
+            // Calculate center crop (square)
+            const cropSize = Math.min(canvas.width, canvas.height) * 0.5;
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const cropX = centerX - cropSize / 2;
@@ -1188,28 +1599,26 @@
             croppedCanvas.width = 400;
             croppedCanvas.height = 400;
             
-            // Draw ONLY the center square
+            // Draw center square
             croppedCtx.drawImage(
                 canvas, 
-                cropX, cropY, cropSize, cropSize,  // Source: center square from video
-                0, 0, 400, 400                     // Destination: 400x400 square
+                cropX, cropY, cropSize, cropSize,
+                0, 0, 400, 400
             );
             
             const dataUrl = croppedCanvas.toDataURL('image/jpeg', 0.9);
-            console.log('📸 PRECISE square photo captured');
             
             await closeCameraPreview();
             await processPhotoData(dataUrl);
         }
 
-        // Process photo data (common for both camera and file)
+        // Process photo data
         async function processPhotoData(dataUrl) {
             state.currentImageUri = dataUrl;
             const previewImg = document.getElementById('preview-image');
             previewImg.src = state.currentImageUri;
             previewImg.style.display = 'block';
             
-            // Show that we captured the photo
             showNotification('📷 Photo captured! Enter album details manually or use auto-fill.');
         }
 
@@ -1218,7 +1627,6 @@
             const preview = document.getElementById('camera-preview');
             const video = document.getElementById('camera-video');
             
-            // Stop camera stream
             if (currentCameraStream) {
                 currentCameraStream.getTracks().forEach(track => track.stop());
                 currentCameraStream = null;
@@ -1228,8 +1636,8 @@
             preview.style.display = 'none';
         }
 
-        // Add album to collection (genre-aware)
-        function addAlbum() {
+        // Add album to collection (with collaborative support)
+        async function addAlbum() {
             const title = document.getElementById('title-input').value.trim();
             const artist = document.getElementById('artist-input').value.trim();
             
@@ -1238,16 +1646,40 @@
                 return;
             }
 
-            const currentAlbums = getCurrentAlbums();
+            // If in "all" view, ask which genre to add to
+            let targetGenre = state.currentGenre;
+            if (state.currentGenre === 'all') {
+                const genreNames = getGenreDisplayInfo();
+                const availableGenres = Object.keys(state.albums).filter(g => g !== 'all');
+                
+                const genreList = availableGenres.map(g => {
+                    const info = genreNames[g] || { emoji: '🎵', name: g };
+                    return `• ${g}: ${info.emoji} ${info.name}`;
+                }).join('\n');
+                
+                targetGenre = prompt(`Which genre should this album be added to?\n\nAvailable genres:\n${genreList}\n\nEnter genre name (e.g., "main", "rock", "jazz"):`);
+                
+                if (!targetGenre || !availableGenres.includes(targetGenre.toLowerCase())) {
+                    if (targetGenre !== null) { // User didn't cancel
+                        alert('Invalid genre. Please choose from the available genres.');
+                    }
+                    return;
+                }
+                targetGenre = targetGenre.toLowerCase();
+            }
+
+            const targetAlbums = state.albums[targetGenre] || [];
             
-            // Check for duplicates in current genre
-            const duplicate = currentAlbums.find(album => 
+            // Check for duplicates in target genre
+            const duplicate = targetAlbums.find(album => 
                 album.title.toLowerCase() === title.toLowerCase() && 
                 album.artist.toLowerCase() === artist.toLowerCase()
             );
 
             if (duplicate) {
-                alert(`This album is already in your ${state.currentGenre} collection!`);
+                const genreNames = getGenreDisplayInfo();
+                const genreInfo = genreNames[targetGenre] || { name: targetGenre };
+                alert(`This album is already in your ${genreInfo.name}!`);
                 return;
             }
 
@@ -1257,11 +1689,26 @@
                 artist,
                 imageUri: state.currentImageUri,
                 dateAdded: new Date().toISOString(),
-                genre: state.currentGenre
+                genre: targetGenre
             };
 
-            addAlbumToCurrentGenre(newAlbum);
-            saveAlbums();
+            // Try to add to collaborative collection first
+            if (state.isCollaborative && targetGenre === state.currentGenre) {
+                const success = await addAlbumToSupabase(newAlbum);
+                if (!success) {
+                    showNotification('⚠️ Added locally - collaborative sync failed');
+                }
+            }
+
+            // Add to target genre
+            if (!state.albums[targetGenre]) {
+                state.albums[targetGenre] = [];
+            }
+            state.albums[targetGenre].push(newAlbum);
+            
+            if (!state.isCollaborative) {
+                saveLocalAlbums();
+            }
             
             // Clear form
             document.getElementById('title-input').value = '';
@@ -1269,22 +1716,48 @@
             document.getElementById('preview-image').style.display = 'none';
             state.currentImageUri = null;
             
-            showNotification(`✅ Album added to ${state.currentGenre} collection!`);
+            const collabText = state.isCollaborative ? ' to shared collection' : '';
+            const genreNames = getGenreDisplayInfo();
+            const genreInfo = genreNames[targetGenre] || { name: targetGenre };
+            showNotification(`✅ Album added to ${genreInfo.name}${collabText}!`);
             renderAlbums();
         }
 
-        // Add album from search results (genre-aware)
-        function addAlbumFromSearch(albumData) {
-            const currentAlbums = getCurrentAlbums();
+        // Add album from search results
+        async function addAlbumFromSearch(albumData) {
+            // If in "all" view, ask which genre to add to
+            let targetGenre = state.currentGenre;
+            if (state.currentGenre === 'all') {
+                const genreNames = getGenreDisplayInfo();
+                const availableGenres = Object.keys(state.albums).filter(g => g !== 'all');
+                
+                const genreList = availableGenres.map(g => {
+                    const info = genreNames[g] || { emoji: '🎵', name: g };
+                    return `• ${g}: ${info.emoji} ${info.name}`;
+                }).join('\n');
+                
+                targetGenre = prompt(`Which genre should "${albumData.title}" be added to?\n\nAvailable genres:\n${genreList}\n\nEnter genre name (e.g., "main", "rock", "jazz"):`);
+                
+                if (!targetGenre || !availableGenres.includes(targetGenre.toLowerCase())) {
+                    if (targetGenre !== null) { // User didn't cancel
+                        alert('Invalid genre. Please choose from the available genres.');
+                    }
+                    return;
+                }
+                targetGenre = targetGenre.toLowerCase();
+            }
+
+            const targetAlbums = state.albums[targetGenre] || [];
             
-            // Check for duplicates in current genre
-            const duplicate = currentAlbums.find(album => 
+            const duplicate = targetAlbums.find(album => 
                 album.title.toLowerCase() === albumData.title.toLowerCase() && 
                 album.artist.toLowerCase() === albumData.artist.toLowerCase()
             );
 
             if (duplicate) {
-                alert(`This album is already in your ${state.currentGenre} collection!`);
+                const genreNames = getGenreDisplayInfo();
+                const genreInfo = genreNames[targetGenre] || { name: targetGenre };
+                alert(`This album is already in your ${genreInfo.name}!`);
                 return;
             }
 
@@ -1298,18 +1771,36 @@
                 source: 'online'
             };
 
-            addAlbumToCurrentGenre(newAlbum);
-            saveAlbums();
+            // Add to collaborative collection if applicable
+            if (state.isCollaborative && targetGenre === state.currentGenre) {
+                const success = await addAlbumToSupabase(newAlbum);
+                if (!success) {
+                    showNotification('⚠️ Added locally - collaborative sync failed');
+                }
+            }
+
+            // Add to target genre
+            if (!state.albums[targetGenre]) {
+                state.albums[targetGenre] = [];
+            }
+            state.albums[targetGenre].push(newAlbum);
+            
+            if (!state.isCollaborative) {
+                saveLocalAlbums();
+            }
             
             document.getElementById('search-modal').style.display = 'none';
             document.getElementById('online-search-input').value = '';
             document.getElementById('search-results').innerHTML = '';
             
-            showNotification(`✅ Album added to ${state.currentGenre} collection!`);
+            const collabText = state.isCollaborative ? ' to shared collection' : '';
+            const genreNames = getGenreDisplayInfo();
+            const genreInfo = genreNames[targetGenre] || { name: targetGenre };
+            showNotification(`✅ Album added to ${genreInfo.name}${collabText}!`);
             renderAlbums();
         }
 
-        // Edit album functionality (fixed for genre-aware albums)
+        // Edit album functionality
         function editAlbum(albumId) {
             const currentAlbums = getCurrentAlbums();
             const album = currentAlbums.find(a => a.id === albumId);
@@ -1317,467 +1808,9 @@
 
             editingAlbumId = albumId;
             
-            // Fill edit form
             document.getElementById('edit-title-input').value = album.title;
             document.getElementById('edit-artist-input').value = album.artist;
             document.getElementById('edit-year-input').value = album.year || '';
             
-            // Show image if exists
             const editPreview = document.getElementById('edit-preview-image');
-            if (album.imageUri) {
-                editPreview.src = album.imageUri;
-                editPreview.style.display = 'block';
-            } else {
-                editPreview.style.display = 'none';
-            }
-            
-            document.getElementById('edit-modal').style.display = 'flex';
-        }
-
-        // Move album between genres
-        function moveAlbum(albumId) {
-            const currentAlbums = getCurrentAlbums();
-            const album = currentAlbums.find(a => a.id === albumId);
-            if (!album) return;
-
-            // Get all available genres
-            const allGenres = ['main', 'rock', 'jazz', 'pop', 'hip-hop', 'country', 'classical', 'electronic', 'christian'];
-            const customGenreNames = state.customGenres.map(g => g.id);
-            const availableGenres = [...allGenres, ...customGenreNames].filter(g => g !== state.currentGenre);
-
-            // Show genre selection
-            const genreNames = {
-                'main': '🎵 Main Collection',
-                'rock': '🎸 Rock Collection', 
-                'jazz': '🎷 Jazz Collection',
-                'pop': '🎤 Pop Collection',
-                'hip-hop': '🎤 Hip-Hop Collection',
-                'country': '🤠 Country Collection',
-                'classical': '🎼 Classical Collection',
-                'electronic': '🎛️ Electronic Collection',
-                'christian': '✝️ Christian Collection'
-            };
-
-            // Add custom genre names
-            state.customGenres.forEach(g => {
-                genreNames[g.id] = `${g.emoji} ${g.name}`;
-            });
-
-            const genreList = availableGenres.map(g => `• ${genreNames[g] || g}`).join('\n');
-            const targetGenre = prompt(`Move "${album.title}" to which genre?\n\nAvailable genres:\n${genreList}\n\nEnter genre name (e.g., "rock", "jazz"):`);
-
-            if (targetGenre && availableGenres.includes(targetGenre.toLowerCase())) {
-                const target = targetGenre.toLowerCase();
-                
-                // Ensure target genre exists
-                if (!state.albums[target]) {
-                    state.albums[target] = [];
-                }
-
-                // Check for duplicates in target genre
-                const duplicate = state.albums[target].find(a => 
-                    a.title.toLowerCase() === album.title.toLowerCase() && 
-                    a.artist.toLowerCase() === album.artist.toLowerCase()
-                );
-
-                if (duplicate) {
-                    alert(`"${album.title}" already exists in ${genreNames[target]}!`);
-                    return;
-                }
-
-                // Move album
-                state.albums[target].push(album);
-                state.albums[state.currentGenre] = state.albums[state.currentGenre].filter(a => a.id !== albumId);
-                
-                saveAlbums();
-                renderAlbums();
-                showNotification(`📁 Moved "${album.title}" to ${genreNames[target]}!`);
-            }
-        }
-
-        function saveEditedAlbum() {
-            if (!editingAlbumId) return;
-
-            const title = document.getElementById('edit-title-input').value.trim();
-            const artist = document.getElementById('edit-artist-input').value.trim();
-            const year = document.getElementById('edit-year-input').value.trim();
-            
-            if (!title || !artist) {
-                alert('Please enter both title and artist');
-                return;
-            }
-
-            const currentAlbums = getCurrentAlbums();
-
-            // Check for duplicates (exclude current album)
-            const duplicate = currentAlbums.find(album => 
-                album.id !== editingAlbumId &&
-                album.title.toLowerCase() === title.toLowerCase() && 
-                album.artist.toLowerCase() === artist.toLowerCase()
-            );
-
-            if (duplicate) {
-                alert('This album is already in your collection!');
-                return;
-            }
-
-            // Update the album in current genre
-            const albumIndex = state.albums[state.currentGenre].findIndex(a => a.id === editingAlbumId);
-            if (albumIndex !== -1) {
-                state.albums[state.currentGenre][albumIndex] = {
-                    ...state.albums[state.currentGenre][albumIndex],
-                    title,
-                    artist,
-                    year,
-                    lastModified: new Date().toISOString()
-                };
-                
-                saveAlbums();
-                renderAlbums();
-                
-                document.getElementById('edit-modal').style.display = 'none';
-                editingAlbumId = null;
-                
-                showNotification('✅ Album updated successfully!');
-            }
-        }
-
-        function cancelEdit() {
-            document.getElementById('edit-modal').style.display = 'none';
-            editingAlbumId = null;
-        }
-
-        // Delete album (genre-aware)
-        function deleteAlbum(albumId) {
-            if (confirm('Are you sure you want to remove this album from your collection?')) {
-                state.albums[state.currentGenre] = state.albums[state.currentGenre].filter(album => album.id !== albumId);
-                saveAlbums();
-                renderAlbums();
-                showNotification('🗑️ Album deleted from collection');
-            }
-        }
-
-        // Filter and sort albums (genre-aware)
-        function getFilteredAndSortedAlbums() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const currentAlbums = getCurrentAlbums();
-            
-            let filtered = currentAlbums.filter(album => {
-                const titleMatch = album.title.toLowerCase().includes(searchTerm);
-                const artistMatch = album.artist.toLowerCase().includes(searchTerm);
-                return titleMatch || artistMatch;
-            });
-
-            return filtered.sort((a, b) => a.title.localeCompare(b.title));
-        }
-
-        // Render albums (with list view support and genre-aware)
-        function renderAlbums() {
-            const container = document.getElementById('albums-container');
-            const data = getFilteredAndSortedAlbums();
-            const currentAlbums = getCurrentAlbums();
-            
-            // Update collection count for current genre
-            const genreDisplayName = document.getElementById('genre-selector').selectedOptions[0].textContent;
-            document.getElementById('collection-count').textContent = `${currentAlbums.length} albums in ${genreDisplayName}`;
-            
-            if (currentAlbums.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <h3>No albums in your ${state.currentGenre} collection yet!</h3>
-                        <p>Start by searching for albums online or adding them manually.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Check if search returned no results
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            if (searchTerm && data.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <h3>No albums match your search</h3>
-                        <p>Try a different search term or clear the search to see all albums.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            if (state.viewMode === 'list') {
-                container.innerHTML = `
-                    <div class="list-container">
-                        <div class="list-header">
-                            <div>Album</div>
-                            <div>Artist</div>
-                            <div>Year</div>
-                            <div>Actions</div>
-                        </div>
-                        ${data.map(renderListRow).join('')}
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div class="album-grid">
-                        ${data.map(renderAlbumCard).join('')}
-                    </div>
-                `;
-            }
-        }
-
-        // Render album card with edit and move functionality
-        function renderAlbumCard(item) {
-            return `
-                <div class="album-card">
-                    <button class="delete-button" onclick="deleteAlbum('${item.id}')" title="Delete album">×</button>
-                    <button class="edit-button" onclick="editAlbum('${item.id}')" title="Edit album">✏️</button>
-                    <button class="edit-button" onclick="moveAlbum('${item.id}')" title="Move to different genre" style="right: 70px; background-color: #FF9500;">📁</button>
-                    ${item.imageUri ? 
-                        `<img src="${item.imageUri}" alt="${item.title}" class="album-image" />` :
-                        `<div class="placeholder-image">♪</div>`
-                    }
-                    <div class="album-title">${item.title}</div>
-                    <div class="album-artist">${item.artist}</div>
-                    ${item.year ? `<div class="album-year">${item.year}</div>` : ''}
-                </div>
-            `;
-        }
-
-        // Render list row
-        function renderListRow(item) {
-            return `
-                <div class="list-row">
-                    <div>
-                        <div class="list-album-info">
-                            ${state.showCovers && item.imageUri ? 
-                                `<img src="${item.imageUri}" alt="${item.title}" class="list-image" />` :
-                                state.showCovers ? `<div class="list-placeholder">♪</div>` : ''
-                            }
-                            <div class="list-album-title">${item.title}</div>
-                        </div>
-                    </div>
-                    <div>${item.artist}</div>
-                    <div>${item.year || '—'}</div>
-                    <div>
-                        <button class="delete-button-small" onclick="deleteAlbum('${item.id}')">Delete</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Update view mode buttons
-        function updateViewButtons() {
-            document.querySelectorAll('#list-view-btn, #grid-view-btn').forEach(btn => {
-                btn.className = 'secondary-button';
-            });
-            
-            const activeBtn = state.viewMode === 'list' ? 'list-view-btn' : 'grid-view-btn';
-            document.getElementById(activeBtn).className = 'primary-button';
-            document.getElementById('covers-toggle').style.display = state.viewMode === 'list' ? 'flex' : 'none';
-        }
-
-        // Render search results
-        function renderSearchResults(results) {
-            const container = document.getElementById('search-results');
-            
-            if (results.length === 0) {
-                container.innerHTML = '<div class="loader">No albums found. Try a different search term.</div>';
-                return;
-            }
-            
-            container.innerHTML = `
-                <h3>Search Results:</h3>
-                ${results.map(item => `
-                    <div class="search-result-card" onclick="addAlbumFromSearch(${JSON.stringify(item).replace(/"/g, '&quot;')})">
-                        <img src="${item.imageUrl}" alt="${item.title}" class="search-result-image" />
-                        <div class="search-result-info">
-                            <div class="search-result-title">${item.title}</div>
-                            <div class="search-result-artist">${item.artist}</div>
-                            <div class="search-result-year">${item.year}</div>
-                        </div>
-                        <button class="add-button-text">ADD</button>
-                    </div>
-                `).join('')}
-            `;
-        }
-
-        // Event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            loadAlbums();
-            renderAlbums();
-            updateViewButtons();
-
-            // Genre selector change (fixed create new genre)
-            document.getElementById('genre-selector').addEventListener('change', (e) => {
-                if (e.target.value === 'custom') {
-                    const genreName = prompt('Enter new genre name (e.g., "Reggae", "Blues"):');
-                    if (!genreName || !genreName.trim()) {
-                        e.target.value = state.currentGenre; // Reset if cancelled
-                        return;
-                    }
-                    
-                    const genreEmoji = prompt('Enter emoji for this genre (e.g., 🎵, 🎸, 🎷):') || '🎵';
-                    const cleanName = genreName.trim();
-                    const genreId = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-                    
-                    // Check if genre already exists
-                    if (state.albums[genreId] || state.customGenres.find(g => g.id === genreId)) {
-                        alert('This genre already exists!');
-                        e.target.value = state.currentGenre;
-                        return;
-                    }
-                    
-                    // Add to custom genres
-                    state.customGenres.push({
-                        id: genreId,
-                        name: cleanName,
-                        emoji: genreEmoji.trim()
-                    });
-                    
-                    // Initialize empty collection for new genre
-                    state.albums[genreId] = [];
-                    
-                    // Update selector and switch to new genre
-                    updateGenreSelector();
-                    state.currentGenre = genreId;
-                    e.target.value = genreId;
-                    
-                    saveAlbums();
-                    renderAlbums();
-                    showNotification(`✅ Created new genre: ${genreEmoji} ${cleanName}!`);
-                } else {
-                    state.currentGenre = e.target.value;
-                    renderAlbums();
-                }
-            });
-
-            // Search input with real-time feedback
-            document.getElementById('search-input').addEventListener('input', function() {
-                renderAlbums();
-            });
-
-            // View mode buttons
-            document.getElementById('list-view-btn').addEventListener('click', () => {
-                state.viewMode = 'list';
-                updateViewButtons();
-                renderAlbums();
-            });
-
-            document.getElementById('grid-view-btn').addEventListener('click', () => {
-                state.viewMode = 'grid';
-                updateViewButtons();
-                renderAlbums();
-            });
-
-            // Show covers toggle
-            document.getElementById('show-covers-checkbox').addEventListener('change', (e) => {
-                state.showCovers = e.target.checked;
-                renderAlbums();
-            });
-
-            // Auto-fill button
-            document.getElementById('auto-fill-btn').addEventListener('click', autoFillAlbumInfo);
-
-            // Camera button
-            document.getElementById('camera-btn').addEventListener('click', takePhoto);
-
-            // Camera capture and cancel buttons  
-            document.getElementById('capture-btn').addEventListener('click', capturePhoto);
-            document.getElementById('cancel-camera-btn').addEventListener('click', closeCameraPreview);
-
-            // Add album button
-            document.getElementById('add-album-btn').addEventListener('click', addAlbum);
-
-            // Find online button
-            document.getElementById('find-online-btn').addEventListener('click', () => {
-                document.getElementById('search-modal').style.display = 'flex';
-            });
-
-            // Share collection button (back to URL encoding for cross-device sharing)
-            document.getElementById('share-collection-btn').addEventListener('click', () => {
-                const currentAlbums = getCurrentAlbums();
-                if (currentAlbums.length === 0) {
-                    alert(`Add some albums to your ${state.currentGenre} collection first!`);
-                    return;
-                }
-                
-                // Use URL encoding for cross-device sharing
-                const collectionData = btoa(JSON.stringify(currentAlbums));
-                const shareableURL = `${window.location.origin}${window.location.pathname}?collection=${collectionData}&genre=${state.currentGenre}`;
-                
-                console.log(`Sharing ${currentAlbums.length} albums from ${state.currentGenre} collection`);
-                
-                // Show share link in modal
-                showShareLink(shareableURL);
-                
-                // Store for copy button
-                window.currentShareURL = shareableURL;
-                
-                document.getElementById('share-modal').style.display = 'flex';
-            });
-
-            // Copy share link button
-            document.getElementById('copy-share-link-btn').addEventListener('click', () => {
-                if (window.currentShareURL) {
-                    copyToClipboard(window.currentShareURL);
-                }
-            });
-
-            // Edit album functionality
-            document.getElementById('save-edit-btn').addEventListener('click', saveEditedAlbum);
-            document.getElementById('cancel-edit-btn').addEventListener('click', cancelEdit);
-            document.getElementById('close-edit-modal-btn').addEventListener('click', cancelEdit);
-
-            // Close share modal
-            document.getElementById('close-share-modal-btn').addEventListener('click', () => {
-                document.getElementById('share-modal').style.display = 'none';
-            });
-
-            // Close modal button
-            document.getElementById('close-modal-btn').addEventListener('click', () => {
-                document.getElementById('search-modal').style.display = 'none';
-            });
-
-            // Online search
-            document.getElementById('search-btn').addEventListener('click', async () => {
-                const query = document.getElementById('online-search-input').value;
-                if (!query.trim()) return;
-
-                document.getElementById('search-results').innerHTML = '<div class="loader">🔍 Searching for albums...</div>';
-                
-                try {
-                    const results = await searchAlbumsOnline(query);
-                    renderSearchResults(results);
-                } catch (error) {
-                    document.getElementById('search-results').innerHTML = '<div class="loader">Search failed. Please try again.</div>';
-                }
-            });
-
-            // Enter key for online search
-            document.getElementById('online-search-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    document.getElementById('search-btn').click();
-                }
-            });
-
-            // Close modals when clicking outside
-            document.getElementById('share-modal').addEventListener('click', (e) => {
-                if (e.target === e.currentTarget) {
-                    document.getElementById('share-modal').style.display = 'none';
-                }
-            });
-
-            document.getElementById('edit-modal').addEventListener('click', (e) => {
-                if (e.target === e.currentTarget) {
-                    cancelEdit();
-                }
-            });
-
-            document.getElementById('search-modal').addEventListener('click', (e) => {
-                if (e.target === e.currentTarget) {
-                    document.getElementById('search-modal').style.display = 'none';
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+            if (album.
