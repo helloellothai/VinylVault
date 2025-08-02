@@ -594,6 +594,24 @@
             background: #007AFF;
             color: white;
         }
+
+        .short-url-display {
+            background: #f8f9fa;
+            border: 2px solid #007AFF;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .short-url-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007AFF;
+            margin: 10px 0;
+            word-break: break-all;
+            font-family: monospace;
+        }
         
         @media (max-width: 768px) {
             .container {
@@ -792,25 +810,24 @@
 
             <div style="text-align: center;">
                 <p style="margin-bottom: 20px; color: #666;">
-                    Share your collection with this link!
+                    Share your collection with this permanent link!
                 </p>
 
-                <div id="qr-code-display" style="
-                    background: white; 
-                    padding: 20px; 
-                    border-radius: 12px; 
-                    display: inline-block;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                    min-height: 120px;
-                    width: 100%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                ">Loading share link...</div>
+                <div id="short-url-display" class="short-url-display">
+                    <div style="font-size: 16px; color: #666; margin-bottom: 10px;">
+                        🔗 Permanent Share Link
+                    </div>
+                    <div id="short-url-text" class="short-url-text">
+                        Generating link...
+                    </div>
+                    <div style="font-size: 14px; color: #888; margin-top: 10px;">
+                        Permanent link - never expires!
+                    </div>
+                </div>
 
                 <div style="margin-top: 20px;">
                     <button class="primary-button" id="copy-share-link-btn">
-                        📋 Copy Share Link
+                        📋 Copy Link
                     </button>
                 </div>
             </div>
@@ -893,6 +910,68 @@
         let movingAlbumId = null;
         let currentCameraStream = null;
 
+        // Short URL system using simple encoding - PERMANENT STORAGE
+        class ShortURL {
+            static generateShareId() {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let result = '';
+                for (let i = 0; i < 8; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return result;
+            }
+
+            static saveCollection(albums, genre) {
+                const shareId = this.generateShareId();
+                const shareData = {
+                    albums: albums,
+                    genre: genre,
+                    timestamp: Date.now(),
+                    owner: 'vinyl-user-' + Date.now()
+                };
+                
+                try {
+                    // Store permanently in localStorage - NO EXPIRY
+                    localStorage.setItem(`vinyl-share-${shareId}`, JSON.stringify(shareData));
+                    return shareId;
+                } catch (error) {
+                    console.error('Failed to save share data:', error);
+                    return null;
+                }
+            }
+
+            static loadCollection(shareId) {
+                try {
+                    const stored = localStorage.getItem(`vinyl-share-${shareId}`);
+                    if (!stored) return null;
+                    
+                    // Return data directly - NO EXPIRY CHECK
+                    return JSON.parse(stored);
+                } catch (error) {
+                    console.error('Failed to load share data:', error);
+                    return null;
+                }
+            }
+
+            static cleanupCorrupted() {
+                // Only clean up corrupted entries, not expired ones
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('vinyl-share-')) {
+                        try {
+                            const stored = localStorage.getItem(key);
+                            if (stored) {
+                                JSON.parse(stored); // Test if valid JSON
+                            }
+                        } catch (error) {
+                            // Remove only corrupted entries
+                            localStorage.removeItem(key);
+                        }
+                    }
+                }
+            }
+        }
+
         // Get all albums across all genres
         function getAllAlbums() {
             let allAlbums = [];
@@ -913,6 +992,9 @@
         // Load albums from storage with genre support
         function loadAlbums() {
             try {
+                // Clean up only corrupted shares on load (not expired ones)
+                ShortURL.cleanupCorrupted();
+                
                 // Load main albums (backwards compatibility)
                 const saved = localStorage.getItem('vinylCollection');
                 if (saved) {
@@ -996,46 +1078,69 @@
             });
         }
 
-        // Load collection from URL parameter
+        // Load collection from URL parameter (handles both short and long URLs)
         function loadFromURL() {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
+                
+                // Check for short URL first
+                const shareId = urlParams.get('s');
+                if (shareId) {
+                    const shareData = ShortURL.loadCollection(shareId);
+                    if (shareData) {
+                        loadSharedCollection(shareData.albums, shareData.genre);
+                        // Clean URL after loading
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        return;
+                    } else {
+                        showNotification('⚠️ Shared collection not found');
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        return;
+                    }
+                }
+                
+                // Fallback to old long URL format
                 const collectionData = urlParams.get('collection');
                 const genre = urlParams.get('genre') || 'main';
                 
                 if (collectionData) {
                     const decodedData = JSON.parse(atob(collectionData));
-                    
-                    // Ensure target genre exists
-                    if (!state.albums[genre]) {
-                        state.albums[genre] = [];
-                    }
-                    
-                    // Merge with existing collection (avoid duplicates)
-                    const existingTitles = new Set(state.albums[genre].map(album => `${album.title}-${album.artist}`.toLowerCase()));
-                    const newAlbums = decodedData.filter(album => 
-                        !existingTitles.has(`${album.title}-${album.artist}`.toLowerCase())
-                    );
-                    
-                    if (newAlbums.length > 0) {
-                        state.albums[genre].push(...newAlbums);
-                        saveAlbums();
-                        
-                        // Switch to the shared genre
-                        state.currentGenre = genre;
-                        document.getElementById('genre-selector').value = genre;
-                        
-                        console.log(`Added ${newAlbums.length} albums to ${genre} collection`);
-                        showNotification(`✅ Added ${newAlbums.length} albums to ${genre.charAt(0).toUpperCase() + genre.slice(1)} collection!`);
-                    } else {
-                        showNotification(`📚 All albums from shared ${genre} collection already in your library!`);
-                    }
-                    
+                    loadSharedCollection(decodedData, genre);
                     // Clean URL after loading
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             } catch (error) {
                 console.error('Error loading collection from URL:', error);
+                showNotification('⚠️ Failed to load shared collection');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        // Load shared collection helper
+        function loadSharedCollection(albumsData, genre) {
+            // Ensure target genre exists
+            if (!state.albums[genre]) {
+                state.albums[genre] = [];
+            }
+            
+            // Merge with existing collection (avoid duplicates)
+            const existingTitles = new Set(state.albums[genre].map(album => `${album.title}-${album.artist}`.toLowerCase()));
+            const newAlbums = albumsData.filter(album => 
+                !existingTitles.has(`${album.title}-${album.artist}`.toLowerCase())
+            );
+            
+            if (newAlbums.length > 0) {
+                state.albums[genre].push(...newAlbums);
+                saveAlbums();
+                
+                // Switch to the shared genre
+                state.currentGenre = genre;
+                document.getElementById('genre-selector').value = genre;
+                
+                console.log(`Added ${newAlbums.length} albums to ${genre} collection`);
+                showNotification(`✅ Added ${newAlbums.length} albums to ${genre.charAt(0).toUpperCase() + genre.slice(1)} collection!`);
+            } else {
+                showNotification(`📚 All albums from shared ${genre} collection already in your library!`);
             }
         }
 
@@ -1051,20 +1156,35 @@
             }, 4000);
         }
 
-        // Show share link
-        function showShareLink(url) {
-            const qrContainer = document.getElementById('qr-code-display');
-            qrContainer.innerHTML = `
-                <div style="padding: 20px; text-align: center;">
-                    <p style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">📱 Share Link</p>
-                    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; word-break: break-all; font-family: monospace; font-size: 14px; margin-bottom: 15px;">
-                        ${url}
-                    </div>
-                    <p style="color: #666; font-size: 14px;">
-                        Send this link to share your ${state.currentGenre} collection!
-                    </p>
-                </div>
-            `;
+        // Create short share URL
+        function createShortShareURL() {
+            const currentAlbums = getCurrentAlbums();
+            if (currentAlbums.length === 0) {
+                showNotification(`❌ Add some albums to your ${state.currentGenre} collection first!`);
+                return null;
+            }
+            
+            try {
+                const shareId = ShortURL.saveCollection(currentAlbums, state.currentGenre);
+                if (shareId) {
+                    const baseUrl = window.location.origin + window.location.pathname;
+                    const shortURL = `${baseUrl}?s=${shareId}`;
+                    return shortURL;
+                } else {
+                    showNotification('❌ Failed to create share link. Try again.');
+                    return null;
+                }
+            } catch (error) {
+                console.error('Error creating short share URL:', error);
+                showNotification('❌ Failed to create share link. Try again.');
+                return null;
+            }
+        }
+
+        // Show short share link
+        function showShortShareLink(url) {
+            const urlDisplay = document.getElementById('short-url-text');
+            urlDisplay.textContent = url;
         }
 
         // Copy to clipboard with fallback
@@ -1853,37 +1973,22 @@
                 document.getElementById('search-modal').style.display = 'flex';
             });
 
-            // FIXED: Share collection button with proper URL encoding
+            // Share collection button with SHORT URL generation
             document.getElementById('share-collection-btn').addEventListener('click', () => {
                 if (state.currentGenre === 'all') {
                     alert('Please select a specific genre to share. You cannot share the "All Albums" view.');
                     return;
                 }
                 
-                const currentAlbums = getCurrentAlbums();
-                if (currentAlbums.length === 0) {
-                    alert(`Add some albums to your ${state.currentGenre} collection first!`);
-                    return;
-                }
-                
-                try {
-                    // Create shareable URL with proper encoding
-                    const collectionData = btoa(JSON.stringify(currentAlbums));
-                    const baseUrl = window.location.origin + window.location.pathname;
-                    const shareableURL = `${baseUrl}?collection=${encodeURIComponent(collectionData)}&genre=${encodeURIComponent(state.currentGenre)}`;
-                    
-                    console.log(`Sharing ${currentAlbums.length} albums from ${state.currentGenre} collection`);
-                    
-                    // Show share link in modal
-                    showShareLink(shareableURL);
+                const shortURL = createShortShareURL();
+                if (shortURL) {
+                    console.log(`Created short share URL: ${shortURL}`);
+                    showShortShareLink(shortURL);
                     
                     // Store for copy button
-                    window.currentShareURL = shareableURL;
+                    window.currentShareURL = shortURL;
                     
                     document.getElementById('share-modal').style.display = 'flex';
-                } catch (error) {
-                    console.error('Error creating share link:', error);
-                    showNotification('❌ Failed to create share link. Try again.');
                 }
             });
 
